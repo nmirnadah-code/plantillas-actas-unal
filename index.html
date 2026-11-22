@@ -1590,39 +1590,73 @@
 
       const statusBanner = document.createElement('div');
       statusBanner.style.cssText = 'position:sticky; top:0; z-index:10000; background:#1c2838; color:#fff; padding:12px 24px; border-radius:12px; font-weight:bold; font-size:13px; margin-bottom:16px; border:2px solid #84a938;';
-      statusBanner.innerText = '⏳ Generando archivo PDF oficial, por favor espera unos segundos...';
+      statusBanner.innerText = '⏳ Generando archivo PDF oficial página por página...';
       overlay.appendChild(statusBanner);
 
       const renderTarget = document.createElement('div');
-      renderTarget.style.cssText = 'background:#ffffff; width:816px; box-shadow:0 10px 30px rgba(0,0,0,0.4);';
+      renderTarget.style.cssText = 'background:transparent;';
       overlay.appendChild(renderTarget);
       document.body.appendChild(overlay);
 
       try {
         const blob = await buildModifiedDocxBlob();
+        // inWrapper: true genera exactamente una <section class="docx"> por cada página real del Word
         await docx.renderAsync(blob, renderTarget, null, {
-          inWrapper: false,
+          inWrapper: true,
           ignoreWidth: false,
           breakPages: true
         });
 
-        await new Promise(resolve => setTimeout(resolve, 450));
+        // Esperar a que imágenes (escudo UNAL) y estilos de tabla terminen de renderizar
+        await new Promise(resolve => setTimeout(resolve, 600));
 
-        const fileName = `Acta_Liquidacion_${f.sigla}_${f.numero}_${f.anio}.pdf`;
-        await html2pdf().set({
-          margin: [0, 0, 0, 0],
-          filename: fileName,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: {
-            scale: 2,
+        const sections = Array.from(renderTarget.querySelectorAll('section.docx'));
+        if (!sections.length) {
+          throw new Error('No se pudieron renderizar las páginas del documento.');
+        }
+
+        // Obtener el constructor jsPDF y html2canvas incluidos dentro de html2pdf
+        const worker = html2pdf();
+        const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        const h2c = window.html2canvas;
+
+        if (!jsPDFCtor || !h2c) {
+          throw new Error('Librería PDF no disponible en el navegador.');
+        }
+
+        let pdf = null;
+        for (let i = 0; i < sections.length; i++) {
+          const sec = sections[i];
+          // Quitar sombras/márgenes externos de vista previa antes de fotografiar la página
+          sec.style.boxShadow = 'none';
+          sec.style.margin = '0';
+
+          const canvas = await h2c(sec, {
+            scale: 2.5,
             useCORS: true,
             backgroundColor: '#ffffff',
-            scrollX: 0,
-            scrollY: 0
-          },
-          jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' },
-          pagebreak: { mode: ['css', 'legacy'] }
-        }).from(renderTarget).save();
+            logging: false
+          });
+
+          const imgData = canvas.toDataURL('image/jpeg', 0.98);
+          const pageWidthPt = (sec.offsetWidth * 72) / 96;
+          const pageHeightPt = (sec.offsetHeight * 72) / 96;
+
+          if (i === 0) {
+            pdf = new jsPDFCtor({
+              orientation: pageWidthPt > pageHeightPt ? 'landscape' : 'portrait',
+              unit: 'pt',
+              format: [pageWidthPt, pageHeightPt]
+            });
+          } else {
+            pdf.addPage([pageWidthPt, pageHeightPt], pageWidthPt > pageHeightPt ? 'landscape' : 'portrait');
+          }
+
+          pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthPt, pageHeightPt);
+        }
+
+        const fileName = `Acta_Liquidacion_${f.sigla}_${f.numero}_${f.anio}.pdf`;
+        pdf.save(fileName);
       } catch (err) {
         alert('Error al generar el PDF: ' + err.message);
       } finally {
