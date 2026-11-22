@@ -74,19 +74,19 @@
   <!-- CONTENEDOR OCULTO PARA GENERAR PDF LIMPIO -->
   <div id="hidden-pdf-render" style="position:fixed; left:-99999px; top:0; width:816px; background:#fff;"></div>
 
-  <!-- MODAL FLOTANTE DE VISTA PREVIA COMPLETA -->
+  <!-- MODAL FLOTANTE DE VISTA PREVIA -->
   <div id="preview-modal" class="hidden fixed inset-0 bg-slate-900/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden border-2 unal-lime-border">
       <div class="unal-navy text-white px-6 py-3.5 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span>👁</span>
-          <span class="font-bold text-sm">Vista Previa Oficial del Acta de Liquidación</span>
+          <span class="font-bold text-sm">Vista Previa en Borrador del Acta de Liquidación</span>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="generateDirectDocx()" class="px-3 py-1.5 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold">
+          <button onclick="closePreviewModal(); generateDirectDocx();" class="px-3 py-1.5 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold">
             📄 Descargar Word
           </button>
-          <button onclick="generateDirectPdf()" class="px-3 py-1.5 rounded-lg bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-bold">
+          <button onclick="closePreviewModal(); generateDirectPdf();" class="px-3 py-1.5 rounded-lg bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-bold">
             📕 Descargar PDF
           </button>
           <button onclick="closePreviewModal()" class="ml-2 px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold">
@@ -108,9 +108,9 @@
         <button onclick="toggleModal(false)" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
       </div>
       <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
-        <p><strong>1. Validación automática:</strong> El sistema impide generar actas con campos obligatorios vacíos o con saldos incoherentes frente al caso elegido.</p>
-        <p><strong>2. Alerta de capacidad de tablas:</strong> Si registras más pagos ORPA o garantías de los que admite el formato oficial, el sistema te avisará en pantalla.</p>
-        <p><strong>3. Exportación oficial:</strong> Conserva negritas, subrayados, escudo UNAL, numeración de considerandos y firmas en mayúscula sostenida.</p>
+        <p><strong>1. Vista previa libre:</strong> Puedes revisar cómo va quedando el documento en cualquier momento sin bloqueos.</p>
+        <p><strong>2. Validación al exportar:</strong> Al descargar en Word o PDF, el sistema verifica que no falten campos obligatorios y que el balance coincida con el caso seleccionado.</p>
+        <p><strong>3. Estilo editorial automático:</strong> Nombres y firmas se exportan en MAYÚSCULAS y NEGRITA, mientras que los textos de justificación y considerandos se normalizan tipo oración.</p>
       </div>
       <div class="text-right pt-2">
         <button onclick="toggleModal(false)" class="px-4 py-2 rounded-lg unal-navy text-white text-xs font-bold">Entendido</button>
@@ -308,7 +308,6 @@
       }
     };
 
-    // ESCAPE SEGURO PARA COMILLAS Y CARACTERES ESPECIALES EN HTML
     function escAttr(str) {
       return String(str || '')
         .replace(/&/g, '&amp;')
@@ -325,10 +324,49 @@
         .replace(/>/g, '&gt;');
     }
 
+    // NORMALIZACIÓN DE MAYÚSCULAS A TIPO ORACIÓN (RESPETANDO PUNTO SEGUIDO)
+    function normalizeSentenceCase(text, capitalizeFirst = false) {
+      const clean = String(text || '').trim();
+      if (!clean) return '';
+      let lower = clean.toLowerCase();
+      // Mayúscula después de punto seguido
+      lower = lower.replace(/(\.\s+)([a-záéíóúñü])/g, (_, sep, ch) => sep + ch.toUpperCase());
+      if (capitalizeFirst) {
+        lower = lower.charAt(0).toUpperCase() + lower.slice(1);
+      }
+      return lower;
+    }
+
     function formatDotsOnly(val) {
       const digits = String(val || '').replace(/\D/g, '');
       if (!digits) return '';
       return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
+    // FORMATO AUTOMÁTICO DE NIT COLOMBIANO (9 DÍGITOS CON PUNTOS + GUION + DV)
+    function formatNitColombiano(raw) {
+      const clean = String(raw || '').replace(/[^\d-]/g, '');
+      if (!clean) return '';
+      if (clean.includes('-')) {
+        const parts = clean.split('-');
+        const baseDigits = parts[0].replace(/\D/g, '').slice(0, 9);
+        const dvDigits = (parts[1] || '').replace(/\D/g, '').slice(0, 1);
+        const formattedBase = baseDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return `${formattedBase}-${dvDigits}`;
+      }
+      const digits = clean.replace(/\D/g, '').slice(0, 10);
+      if (digits.length <= 9) {
+        return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      }
+      const base = digits.slice(0, 9).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      const dv = digits.slice(9, 10);
+      return `${base}-${dv}`;
+    }
+
+    function handleNitInput(el) {
+      const formatted = formatNitColombiano(el.value);
+      el.value = formatted;
+      state.form.empresaNit = formatted;
     }
 
     function formatCurrencyInput(num) {
@@ -421,7 +459,6 @@
       render();
     }
 
-    // VALIDACIÓN COMPLETA ANTES DE GENERAR WORD O PDF
     function validateBeforeExport() {
       const tpl = TEMPLATES[state.selectedTemplateKey];
       const f = state.form;
@@ -459,7 +496,6 @@
         if (!f.motivoAnticipada.trim()) errs.push('Falta el Motivo de la Terminación Anticipada.');
       }
 
-      // Validación financiera estricta vs Caso elegido
       const vIni = Number(f.valorInicial) || 0;
       const vAdi = Number(f.valorAdicion) || 0;
       const vTot = vIni + vAdi;
@@ -597,11 +633,11 @@
               </div>
             </div>
 
-            <!-- ALERTA DE VALIDACIÓN BLOQUEANTE -->
+            <!-- ALERTA DE VALIDACIÓN AL DESCARGAR -->
             ${state.validationErrors.length > 0 ? `
               <div id="validation-alert-box" class="mx-6 mt-5 bg-red-50 border-2 border-red-400 rounded-xl p-4 space-y-2">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-extrabold text-red-900 uppercase">⛔ No se puede generar el documento — Corrige los siguientes puntos:</span>
+                  <span class="text-xs font-extrabold text-red-900 uppercase">⛔ Antes de descargar, revisa los siguientes puntos:</span>
                   <button onclick="clearValidationErrors()" class="text-xs font-bold text-red-700 hover:underline">Cerrar aviso</button>
                 </div>
                 <ul class="list-disc pl-5 text-xs text-red-800 space-y-1">
@@ -631,7 +667,7 @@
                   <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
                     <span class="text-[#698829]">📝</span> Datos del Contrato / Orden para la Minuta Oficial
                   </div>
-                  <span class="text-[11px] text-slate-400">Campos marcados con * son obligatorios</span>
+                  <span class="text-[11px] text-slate-400">Campos marcados con * son obligatorios al descargar</span>
                 </div>
 
                 <!-- FILA 1: TIPO, NÚMERO, AÑO, FECHA -->
@@ -706,8 +742,8 @@
                         <input type="text" placeholder='Ej: SOLUCIONES "ALFA" S.A.S.' value="${escAttr(f.empresaNombre)}" oninput="fUpdate('empresaNombre', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
                       </div>
                       <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">NIT de la Empresa *</label>
-                        <input type="text" placeholder="900.123.456-7" value="${escAttr(f.empresaNit)}" oninput="fUpdate('empresaNit', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">NIT de la Empresa (9 dígitos + DV) *</label>
+                        <input type="text" placeholder="900.123.456-7" value="${escAttr(f.empresaNit)}" oninput="handleNitInput(this)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
                       </div>
                     </div>
                   ` : ''}
@@ -757,12 +793,12 @@
                   </div>
                 </div>
 
-                <!-- PRÓRROGAS Y SUSPENSIONES -->
+                <!-- PRÓRROGAS Y SUSPENSIONES (FILAS SEPARADAS EN WORD) -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div class="border border-slate-200 rounded-xl p-3.5 space-y-2">
                     <div class="flex items-center justify-between">
                       <span class="text-xs font-bold text-slate-700">Prórrogas (en días calendario)</span>
-                      <button type="button" onclick="addArr('prorrogas')" class="text-xs font-bold text-[#5a7622] hover:underline">+ Agregar otra</button>
+                      <button type="button" onclick="addArr('prorrogas')" class="text-xs font-bold text-[#5a7622] hover:underline">+ Agregar otra prórroga</button>
                     </div>
                     ${f.prorrogas.map((p, idx) => `
                       <div class="flex items-center gap-2">
@@ -776,7 +812,7 @@
                   <div class="border border-slate-200 rounded-xl p-3.5 space-y-2">
                     <div class="flex items-center justify-between">
                       <span class="text-xs font-bold text-slate-700">Suspensiones (en días calendario)</span>
-                      <button type="button" onclick="addArr('suspensiones')" class="text-xs font-bold text-[#5a7622] hover:underline">+ Agregar otra</button>
+                      <button type="button" onclick="addArr('suspensiones')" class="text-xs font-bold text-[#5a7622] hover:underline">+ Agregar otra suspensión</button>
                     </div>
                     ${f.suspensiones.map((s, idx) => `
                       <div class="flex items-center gap-2">
@@ -891,16 +927,16 @@
                   `).join('')}
                 </div>
 
-                <!-- CONSIDERANDOS ADICIONALES NUMERADOS -->
+                <!-- CONSIDERANDOS ADICIONALES (SE INSERTAN DESPUÉS DEL NUMERAL 4) -->
                 <div class="border border-slate-200 rounded-xl p-4 space-y-3">
                   <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wide">CONSIDERANDOS ADICIONALES (SE INSERTAN NUMERADOS ANTES DEL AVAL DEL SUPERVISOR)</span>
+                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wide">CONSIDERANDOS ADICIONALES (SE INSERTAN NUMERADOS DESPUÉS DEL NUMERAL 4)</span>
                     <button type="button" onclick="addConsiderando()" class="text-xs font-bold bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg transition">
                       + Agregar Considerando
                     </button>
                   </div>
                   ${f.considerandosExtra.length === 0 ? `
-                    <p class="text-xs text-slate-400">Si necesitas dejar constancia de hechos adicionales (cesiones, suspensiones, aclaraciones), haz clic en "+ Agregar Considerando". Se insertarán numerados justo antes del párrafo de recomendación del supervisor/interventor.</p>
+                    <p class="text-xs text-slate-400">Si necesitas dejar constancia de hechos adicionales (cesiones, suspensiones, aclaraciones), haz clic en "+ Agregar Considerando". Se insertarán numerados inmediatamente después del considerando 4 (ejecución financiera).</p>
                   ` : f.considerandosExtra.map((c, idx) => `
                     <div class="flex items-start gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                       <span class="text-xs font-bold text-slate-500 pt-1.5">#${idx + 1}</span>
@@ -913,7 +949,7 @@
                 <!-- JUSTIFICACIÓN OBLIGATORIA DEL SALDO (SI APLICA) -->
                 ${tpl.hasSaldoAnular ? `
                   <div class="bg-[#fffbeb] border border-[#f59e0b]/60 rounded-xl p-4 space-y-2">
-                    <label class="block text-xs font-bold text-[#92400e]">Justificación del Saldo sin Ejecutar / Observación Financiera (Considerandos) *</label>
+                    <label class="block text-xs font-bold text-[#92400e]">Justificación del Saldo sin Ejecutar / Observación Financiera (Considerando 4) *</label>
                     <input type="text" placeholder="Ej: no se requirieron la totalidad de los bienes/servicios inicialmente estimados dentro del proyecto"
                       value="${escAttr(f.justificacionSaldo)}" oninput="fUpdate('justificacionSaldo', this.value)"
                       class="w-full border border-[#f59e0b]/60 bg-white rounded-lg px-3 py-2 text-sm">
@@ -1121,6 +1157,40 @@
       for (let i = 1; i < allPs.length; i++) tc.removeChild(allPs[i]);
     }
 
+    function setCellTwoLines(tc, line1, line2) {
+      if (!tc) return;
+      const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+      const existingPs = Array.from(tc.getElementsByTagNameNS(ns, 'p'));
+      const baseP = existingPs[0] ? existingPs[0].cloneNode(true) : null;
+      while (tc.firstChild) tc.removeChild(tc.firstChild);
+
+      [line1, line2].forEach(line => {
+        const p = baseP ? baseP.cloneNode(true) : tc.ownerDocument.createElementNS(ns, 'w:p');
+        tc.appendChild(p);
+        setCellText(tc, line); // limpia el primer p; ajustamos directo:
+      });
+      // Reconstruir limpio con 2 párrafos exactos
+      while (tc.firstChild) tc.removeChild(tc.firstChild);
+      [line1, line2].forEach(line => {
+        const p = tc.ownerDocument.createElementNS(ns, 'w:p');
+        const r = tc.ownerDocument.createElementNS(ns, 'w:r');
+        const rPr = tc.ownerDocument.createElementNS(ns, 'w:rPr');
+        const rFonts = tc.ownerDocument.createElementNS(ns, 'w:rFonts');
+        rFonts.setAttribute('w:ascii', 'Calibri');
+        rFonts.setAttribute('w:hAnsi', 'Calibri');
+        const sz = tc.ownerDocument.createElementNS(ns, 'w:sz');
+        sz.setAttribute('w:val', '22');
+        rPr.appendChild(rFonts);
+        rPr.appendChild(sz);
+        const t = tc.ownerDocument.createElementNS(ns, 'w:t');
+        t.textContent = line;
+        r.appendChild(rPr);
+        r.appendChild(t);
+        p.appendChild(r);
+        tc.appendChild(p);
+      });
+    }
+
     function replacePreservingFormatting(xmlDoc, replacements) {
       const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
       const paragraphs = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'p'));
@@ -1226,21 +1296,28 @@
       const fmt = n => '$' + n.toLocaleString('es-CO');
 
       const siglaObj = SIGLAS_CATALOG.find(s => s.code === f.sigla) || SIGLAS_CATALOG[0];
-      const refOrdenUpper = `${siglaObj.docName} ${f.sigla} No. ${f.numero} de ${f.anio}`;
-      const refOrdenLower = `${siglaObj.docName.toLowerCase()} ${f.sigla} No. ${f.numero} de ${f.anio}`;
-      const contratistaHeader = f.tipoPersona === 'juridica' ? (f.empresaNombre || f.contratista) : f.contratista;
+      const numVal = f.numero.trim() || '___';
+      const anioVal = f.anio.trim() || '2026';
+      const refOrdenUpper = `${siglaObj.docName} ${f.sigla} No. ${numVal} de ${anioVal}`;
+      const refOrdenLower = `${siglaObj.docName.toLowerCase()} ${f.sigla} No. ${numVal} de ${anioVal}`;
+      const contratistaUpper = (f.contratista || '___').toUpperCase();
+      const empresaUpper = (f.empresaNombre || '___').toUpperCase();
+      const supervisorUpper = (f.supervisor || '___').toUpperCase();
+      const contratistaHeader = f.tipoPersona === 'juridica' ? empresaUpper : contratistaUpper;
+
+      // Normalización tipo oración en justificación (inicia minúscula porque va tras "de que ")
+      const justifNormalizada = normalizeSentenceCase(f.justificacionSaldo, false) || 'el valor no ejecutado durante el plazo contractual';
 
       const clausulaContratista = f.tipoPersona === 'juridica'
-        ? `${f.contratista}, ${identWord} con cédula de ciudadanía ${f.identificacion} expedida en ${f.ciudadExpedicion}, en su calidad de representante legal de la empresa ${f.empresaNombre}, identificada con NIT ${f.empresaNit}, según certificado de existencia y representación legal expedido por la Cámara de Comercio`
-        : `${f.contratista}, ${identWord} con cédula de ciudadanía ${f.identificacion} expedida en ${f.ciudadExpedicion}`;
+        ? `${contratistaUpper}, ${identWord} con cédula de ciudadanía ${f.identificacion || '___'} expedida en ${f.ciudadExpedicion || 'Bogotá D.C.'}, en su calidad de representante legal de la empresa ${empresaUpper}, identificada con NIT ${f.empresaNit || '___'}, según certificado de existencia y representación legal expedido por la Cámara de Comercio`
+        : `${contratistaUpper}, ${identWord} con cédula de ciudadanía ${f.identificacion || '___'} expedida en ${f.ciudadExpedicion || 'Bogotá D.C.'}`;
 
-      // Reemplazos específicos (sin reemplazar "AÑO" suelto para no alterar otras palabras)
       const textReplacements = [
         ['ORDEN CONTRACTUAL DE  Tipo de orden # de orden de AÑO', `ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
         ['ORDEN CONTRACTUAL DE Tipo de orden # de orden de AÑO', `ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
         ['CONTRATO/ ORDEN CONTRACTUAL DE  Tipo de orden # de orden de AÑO', `ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
         ['Tipo de orden # de orden de AÑO', refOrdenLower],
-        ['Número de orden', f.numero],
+        ['Número de orden', numVal],
         ['Nombre de contratista o Empresa', contratistaHeader],
         ['LIBIA DENISE CANGREJO ALJURE', decana, true],
         ['51.895.607', ccDecana],
@@ -1250,19 +1327,19 @@
         ['$ Valor Total', fmt(vTot)],
         ['$ Valor por anular', fmt(vAnu)],
         ['$ Valor que se le debe a contratista', fmt(vPen)],
-        ['(indicar brevemente el motivo del saldo sin ejecutar.)', `${f.justificacionSaldo}.`],
-        ['(indicar brevemente el motivo del saldo sin ejecutar)', f.justificacionSaldo],
-        ['indicar brevemente el motivo del saldo sin ejecutar', f.justificacionSaldo],
-        ['(indicar brevemente si aplica o si necesita alguna justificación, en caso de no aplicar se puede borrar todo el párrafo)', f.justificacionSaldo || 'se ejecutó la totalidad del objeto contractual'],
+        ['(indicar brevemente el motivo del saldo sin ejecutar.)', `${justifNormalizada}.`],
+        ['(indicar brevemente el motivo del saldo sin ejecutar)', justifNormalizada],
+        ['indicar brevemente el motivo del saldo sin ejecutar', justifNormalizada],
+        ['(indicar brevemente si aplica o si necesita alguna justificación, en caso de no aplicar se puede borrar todo el párrafo)', justifNormalizada],
         ['El interventor/supervisor', `${artRol.charAt(0).toUpperCase() + artRol.slice(1)} ${rolLower}`],
         ['el interventor/supervisor', `${artRol} ${rolLower}`],
         ['y el supervisor', `y ${artRol} ${rolLower}`],
         ['día de mes de 202X. (Nota: Debe ser posterior al último pago registrado en la ORPA, si aplica).', `${formatDateLong(f.fechaFirma)}.`],
-        ['Nombre del contratista o Rep. Legal', f.contratista.toUpperCase(), true],
+        ['Nombre del contratista o Rep. Legal', contratistaUpper, true],
         ['(CONTRATISTA O REPRESENTANTE LEGAL)', f.tipoPersona === 'juridica' ? 'REPRESENTANTE LEGAL' : 'CONTRATISTA'],
         ['( CONTRATISTA O REPRESENTANTE LEGAL)', f.tipoPersona === 'juridica' ? 'REPRESENTANTE LEGAL' : 'CONTRATISTA'],
-        ['Nombre de empresa (Si es contratista se elimina)', f.tipoPersona === 'juridica' ? f.empresaNombre.toUpperCase() : '', true],
-        ['Nombre del Interventor(a)/Supervisor(a)', f.supervisor.toUpperCase(), true],
+        ['Nombre de empresa (Si es contratista se elimina)', f.tipoPersona === 'juridica' ? empresaUpper : '', true],
+        ['Nombre del Interventor(a)/Supervisor(a)', supervisorUpper, true],
         ['Interventor(a)/Supervisor(a)', f.rolSupervision]
       ];
 
@@ -1276,7 +1353,6 @@
 
         unwrapAllSdt(xmlDoc);
 
-        // Si no se marcan garantías, eliminar párrafo introductorio y tabla de garantías
         if (fileName === 'word/document.xml' && !f.tienePolizas) {
           Array.from(xmlDoc.getElementsByTagNameNS(ns, 'p')).forEach(p => {
             if (p.textContent.toUpperCase().includes('ESTUVO AMPARADA(O) POR LA(S) GARANTÍA(S)')) {
@@ -1290,23 +1366,26 @@
           });
         }
 
-        // Insertar considerandos adicionales NUMERADOS antes de "El interventor/supervisor avala y recomienda..."
+        // INSERTAR CONSIDERANDOS ADICIONALES JUSTO DESPUÉS DEL NUMERAL 4 (EJECUCIÓN FINANCIERA)
         if (fileName === 'word/document.xml') {
-          const extras = f.considerandosExtra.map(x => x.trim()).filter(Boolean);
+          const extras = f.considerandosExtra
+            .map(x => normalizeSentenceCase(x, true))
+            .filter(Boolean);
+
           if (extras.length > 0) {
             const allPs = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'p'));
-            const targetP = allPs.find(p => {
-              const t = p.textContent.toUpperCase();
-              return t.includes('AVALA Y RECOMIENDA AL ORDENADOR DEL GASTO') || t.includes('RECOMIENDA AL ORDENADOR DEL GASTO');
-            }) || allPs.find(p => p.textContent.trim().toUpperCase().startsWith('EN VIRTUD DE LO ANTERIOR'));
+            // Buscar el considerando 4 ("En relación con la ejecución financiera...")
+            const p4 = allPs.find(p => p.textContent.toUpperCase().includes('EN RELACIÓN CON LA EJECUCIÓN FINANCIERA'))
+                    || allPs.find(p => p.textContent.toUpperCase().includes('EN CUMPLIMIENTO DE LAS FUNCIONES ASIGNADAS POR EL MANUAL'));
 
-            if (targetP && targetP.parentNode) {
-              const targetPPr = targetP.getElementsByTagNameNS(ns, 'pPr')[0];
+            if (p4 && p4.parentNode) {
+              const refPPr = p4.getElementsByTagNameNS(ns, 'pPr')[0];
+              let anchorNode = p4.nextSibling;
+
               extras.forEach(texto => {
                 const newP = xmlDoc.createElementNS(ns, 'w:p');
-                if (targetPPr) {
-                  // Clonar propiedades del párrafo (incluye <w:numPr> para continuar la numeración oficial)
-                  newP.appendChild(targetPPr.cloneNode(true));
+                if (refPPr) {
+                  newP.appendChild(refPPr.cloneNode(true));
                 } else {
                   const pPr = xmlDoc.createElementNS(ns, 'w:pPr');
                   const jc = xmlDoc.createElementNS(ns, 'w:jc');
@@ -1331,7 +1410,7 @@
                 r.appendChild(t);
                 newP.appendChild(r);
 
-                targetP.parentNode.insertBefore(newP, targetP);
+                p4.parentNode.insertBefore(newP, anchorNode);
               });
             }
           }
@@ -1346,41 +1425,73 @@
             const tblText = tbl.textContent.toUpperCase();
             const rows = Array.from(tbl.getElementsByTagNameNS(ns, 'tr'));
 
-            // Tabla encabezado superior: Del año | AÑO
             if (tblText.includes('CONTRATANTE') && tblText.includes('DEL AÑO')) {
               rows.forEach(tr => {
                 const cells = Array.from(tr.getElementsByTagNameNS(ns, 'tc'));
                 cells.forEach((tc, idx) => {
                   if (tc.textContent.trim().toUpperCase().includes('DEL AÑO') && cells[idx + 1]) {
-                    setCellText(cells[idx + 1], f.anio);
+                    setCellText(cells[idx + 1], anioVal);
                   }
                 });
               });
             }
 
             else if (tblText.includes('PLAZO INICIAL') && tblText.includes('OBJETO')) {
+              let rowProrroga = null;
+              let rowSuspension = null;
+
               rows.forEach(tr => {
                 const cells = Array.from(tr.getElementsByTagNameNS(ns, 'tc'));
                 if (cells.length < 2) return;
                 const c0 = cells[0].textContent.trim().toUpperCase();
 
-                if (c0.startsWith('OBJETO')) setCellText(cells[1], f.objeto);
-                else if (c0.startsWith('PLAZO INICIAL')) setCellText(cells[1], `${pIni} días`);
-                else if (c0.startsWith('PRÓRROGA')) {
-                  setCellText(cells[1], prorrogasAct.length ? prorrogasAct.map((d,i)=>`Prórroga No. ${i+1}: ${d} días`).join(' / ') : 'No Aplica');
-                }
-                else if (c0.startsWith('SUSPENSIÓN')) {
-                  setCellText(cells[1], suspensionesAct.length ? suspensionesAct.map((d,i)=>`Suspensión No. ${i+1}: ${d} días`).join(' / ') : 'No Aplica');
-                }
-                else if (c0.startsWith('PLAZO TOTAL')) setCellText(cells[1], `${pTot} días`);
+                if (c0.startsWith('OBJETO')) setCellText(cells[1], f.objeto || '');
+                else if (c0.startsWith('PLAZO INICIAL')) setCellText(cells[1], pIni ? `${pIni} días` : '');
+                else if (c0.startsWith('PRÓRROGA')) rowProrroga = tr;
+                else if (c0.startsWith('SUSPENSIÓN')) rowSuspension = tr;
+                else if (c0.startsWith('PLAZO TOTAL')) setCellText(cells[1], pTot ? `${pTot} días` : '');
                 else if (c0.startsWith('FECHA DE INICIO')) setCellText(cells[1], formatDateShort(f.fechaInicio));
                 else if (c0.startsWith('FECHA DE TERMINACIÓN')) setCellText(cells[1], formatDateShort(f.fechaTerminacion));
                 else if (c0.startsWith('VALOR ADICIÓN')) setCellText(cells[1], fmt(vAdi));
                 else if (c0.startsWith('INTERVENTOR/SUPERVISOR')) {
                   setCellText(cells[0], `${f.rolSupervision.toUpperCase()}:`);
-                  setCellText(cells[1], f.supervisor.toUpperCase());
+                  setCellText(cells[1], supervisorUpper);
                 }
               });
+
+              // Expandir filas independientes si hay 2 o más Prórrogas
+              if (rowProrroga) {
+                if (prorrogasAct.length <= 1) {
+                  const cells = Array.from(rowProrroga.getElementsByTagNameNS(ns, 'tc'));
+                  setCellTwoLines(cells[0], 'PRÓRROGA No. 1', '(en días calendario)');
+                  setCellText(cells[1], prorrogasAct.length === 1 ? `${prorrogasAct[0]} días` : 'No Aplica');
+                } else {
+                  prorrogasAct.forEach((dias, idx) => {
+                    const targetRow = idx === 0 ? rowProrroga : rowProrroga.cloneNode(true);
+                    const cells = Array.from(targetRow.getElementsByTagNameNS(ns, 'tc'));
+                    setCellTwoLines(cells[0], `PRÓRROGA No. ${idx + 1}`, '(en días calendario)');
+                    setCellText(cells[1], `${dias} días`);
+                    if (idx > 0) rowProrroga.parentNode.insertBefore(targetRow, rowProrroga.nextSibling);
+                  });
+                }
+              }
+
+              // Expandir filas independientes si hay 2 o más Suspensiones
+              if (rowSuspension) {
+                if (suspensionesAct.length <= 1) {
+                  const cells = Array.from(rowSuspension.getElementsByTagNameNS(ns, 'tc'));
+                  setCellTwoLines(cells[0], 'SUSPENSIÓN No. 1', '(en días calendario)');
+                  setCellText(cells[1], suspensionesAct.length === 1 ? `${suspensionesAct[0]} días` : 'No Aplica');
+                } else {
+                  suspensionesAct.forEach((dias, idx) => {
+                    const targetRow = idx === 0 ? rowSuspension : rowSuspension.cloneNode(true);
+                    const cells = Array.from(targetRow.getElementsByTagNameNS(ns, 'tc'));
+                    setCellTwoLines(cells[0], `SUSPENSIÓN No. ${idx + 1}`, '(en días calendario)');
+                    setCellText(cells[1], `${dias} días`);
+                    if (idx > 0) rowSuspension.parentNode.insertBefore(targetRow, rowSuspension.nextSibling);
+                  });
+                }
+              }
             }
 
             else if (tblText.includes('VIGENCIA DE LOS AMPAROS') && f.tienePolizas) {
@@ -1440,8 +1551,8 @@
       });
     }
 
+    // VISTA PREVIA SIN BLOQUEO ESTRICTO (PERMITE VER EL BORRADOR EN CUALQUIER MOMENTO)
     async function openPreviewModal() {
-      if (!validateBeforeExport()) return;
       const modal = document.getElementById('preview-modal');
       const wrapper = document.getElementById('docx-preview-wrapper');
       modal.classList.remove('hidden');
