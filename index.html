@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asistente de Actas de Liquidación - Facultad de Ingeniería UNAL</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+    .unal-green { background-color: #2b6d21; }
+    .unal-green-hover:hover { background-color: #215419; }
+    .fade-in { animation: fadeIn 0.25s ease-in-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen w-full flex flex-col">
+
+  <!-- BARRA SUPERIOR UNAL A ANCHO COMPLETO -->
+  <header class="unal-green text-white shadow-md w-full">
+    <div class="w-full px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-white/15 px-3 py-1.5 rounded-lg font-bold tracking-wider text-sm border border-white/25">
+          UNAL · INGENIERÍA
+        </div>
+        <div>
+          <h1 class="text-lg font-bold leading-tight">Asistente de Selección y Generación de Actas de Liquidación</h1>
+          <p class="text-xs text-green-100">Facultad de Ingeniería — Sede Bogotá</p>
+        </div>
+      </div>
+      <button onclick="resetWizard()" class="text-xs bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg font-semibold transition">
+        ↺ Reiniciar Asistente
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 w-full px-6 py-6" id="app-container"></main>
+
+  <script>
+    const GITHUB_BASE = 'https://raw.githubusercontent.com/nmirnadah-code/plantillas-actas-unal/principal';
+
+    const TEMPLATES = {
+      mutuo_sin_anular_sin_favor: {
+        title: 'Acta de Liquidación de Mutuo Acuerdo (Sin saldo para anular y sin saldo a favor)',
+        url: `${GITHUB_BASE}/mutuo_sin_anular_sin_favor.docx`,
+        badge: 'Mutuo Acuerdo · Ejecución 100%',
+        hasSaldoAnular: false,
+        hasSaldoFavor: false,
+        isAnticipada: false,
+        isNoEjecutada: false
+      },
+      mutuo_sin_anular_con_favor: {
+        title: 'Acta de Liquidación de Mutuo Acuerdo (Sin saldo para anular y con saldo a favor)',
+        url: `${GITHUB_BASE}/mutuo_sin_anular_con_favor.docx`,
+        badge: 'Mutuo Acuerdo · Saldo a Favor',
+        hasSaldoAnular: false,
+        hasSaldoFavor: true,
+        isAnticipada: false,
+        isNoEjecutada: false
+      },
+      mutuo_con_anular_sin_favor: {
+        title: 'Acta de Liquidación de Mutuo Acuerdo (Con saldo para anular y sin saldo a favor)',
+        url: `${GITHUB_BASE}/mutuo_con_anular_sin_favor.docx`,
+        badge: 'Mutuo Acuerdo · Saldo a Anular',
+        hasSaldoAnular: true,
+        hasSaldoFavor: false,
+        isAnticipada: false,
+        isNoEjecutada: false
+      },
+      mutuo_con_anular_con_favor: {
+        title: 'Acta de Liquidación de Mutuo Acuerdo (Con saldo para anular y con saldo a favor)',
+        url: `${GITHUB_BASE}/mutuo_con_anular_con_favor.docx`,
+        badge: 'Mutuo Acuerdo · Saldo a Anular + Favor',
+        hasSaldoAnular: true,
+        hasSaldoFavor: true,
+        isAnticipada: false,
+        isNoEjecutada: false
+      },
+      anticipada_sin_saldo: {
+        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo (Sin saldo a anular)',
+        url: `${GITHUB_BASE}/anticipada_sin_saldo.docx`,
+        badge: 'Terminación Anticipada',
+        hasSaldoAnular: false,
+        hasSaldoFavor: false,
+        isAnticipada: true,
+        isNoEjecutada: false
+      },
+      anticipada_con_saldo: {
+        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo (Con saldo a anular)',
+        url: `${GITHUB_BASE}/anticipada_con_saldo.docx`,
+        badge: 'Terminación Anticipada · Con Saldo',
+        hasSaldoAnular: true,
+        hasSaldoFavor: false,
+        isAnticipada: true,
+        isNoEjecutada: false
+      },
+      no_ejecutada: {
+        title: 'Acta de Liquidación de Orden No Ejecutada (Anulación Total)',
+        url: `${GITHUB_BASE}/no_ejecutada.docx`,
+        badge: 'No Ejecutada · Anulación 100%',
+        hasSaldoAnular: true,
+        hasSaldoFavor: false,
+        isAnticipada: false,
+        isNoEjecutada: true
+      }
+    };
+
+    const NOMBRE_ORDEN_MAP = {
+      OPS: 'PRESTACIÓN DE SERVICIOS',
+      OSU: 'ORDEN CONTRACTUAL SUPERIOR',
+      OCO: 'COMPRA',
+      OCA: 'ARRENDAMIENTO',
+      ATI: 'ADICIÓN / OTROSÍ'
+    };
+
+    const initialState = () => ({
+      currentNodeId: 'ejecucion',
+      history: [],
+      selectedTemplateKey: null,
+      form: {
+        sigla: 'OPS',
+        numero: '',
+        anio: '2026',
+        fechaFirma: '2026-11-21',
+        tipoPersona: 'natural',
+        contratista: '',
+        identificacion: '',
+        ciudadExpedicion: 'Bogotá D.C.',
+        empresaNombre: '',
+        empresaNit: '',
+        rolSupervision: 'Supervisor',
+        supervisor: '',
+        ccSupervisor: '',
+        objeto: '',
+        plazoInicial: '',
+        prorrogas: [''],
+        suspensiones: [''],
+        fechaInicio: '',
+        fechaTerminacion: '',
+        valorInicial: 0,
+        valorAdicion: 0,
+        valorPendiente: 0,
+        tienePolizas: false,
+        aseguradora: '',
+        garantias: [
+          { tipo: 'Inicial', numero: '', amparos: '', valor: '', inicio: '', fin: '', aprobacion: '' }
+        ],
+        pagos: [],
+        justificacionSaldo: '',
+        fechaAnticipada: '',
+        motivoAnticipada: ''
+      }
+    });
+
+    let state = initialState();
+
+    const DECISION_NODES = {
+      ejecucion: {
+        step: 'Paso 1 de 3',
+        question: '¿El contrato u orden contractual tuvo ejecución física o financiera?',
+        help: 'Selecciona "No" únicamente si la orden nunca inició actividades y se requiere anular el 100% del registro presupuestal.',
+        options: [
+          { label: 'Sí, hubo ejecución total o parcial', desc: 'Se prestaron servicios, entregaron bienes o ejecutaron actividades.', next: 'terminacion' },
+          { label: 'No, nunca se ejecutó (Anulación total)', desc: 'No hubo ejecución ni pagos; se libera el 100% del presupuesto.', templateKey: 'no_ejecutada' }
+        ]
+      },
+      terminacion: {
+        step: 'Paso 2 de 3',
+        question: '¿Cómo finalizó la ejecución de la orden contractual?',
+        help: 'Identifica si cumplió su plazo ordinario o si las partes acordaron terminarla antes de la fecha pactada.',
+        options: [
+          { label: 'Finalización ordinaria (Mutuo Acuerdo)', desc: 'Cumplió el plazo pactado o el objeto contractual.', next: 'saldos_mutuo' },
+          { label: 'Terminación anticipada de mutuo acuerdo', desc: 'Finalizó antes del vencimiento del plazo por acuerdo entre las partes.', next: 'saldos_anticipada' }
+        ]
+      },
+      saldos_mutuo: {
+        step: 'Paso 3 de 3',
+        question: '¿Cuál es el estado de saldos al cierre de la orden?',
+        help: 'Selecciona la combinación exacta entre Saldo sin ejecutar (para anular) y Saldo pendiente por pagar (a favor del contratista).',
+        options: [
+          { label: 'Sin saldo para anular y sin saldo a favor del contratista', desc: 'Ejecución financiera del 100% ya pagada en su totalidad.', templateKey: 'mutuo_sin_anular_sin_favor' },
+          { label: 'Sin saldo para anular y con saldo a favor del contratista', desc: 'Se ejecutó el 100%, pero queda un pago pendiente por desembolsar.', templateKey: 'mutuo_sin_anular_con_favor' },
+          { label: 'Con saldo para anular y sin saldo a favor del contratista', desc: 'Quedó presupuesto sin ejecutar que debe anularse; no se debe dinero al contratista.', templateKey: 'mutuo_con_anular_sin_favor' },
+          { label: 'Con saldo para anular y con saldo a favor del contratista', desc: 'Hay una suma pendiente por pagar al contratista y otra suma sin ejecutar para anular.', templateKey: 'mutuo_con_anular_con_favor' }
+        ]
+      },
+      saldos_anticipada: {
+        step: 'Paso 3 de 3',
+        question: 'En la terminación anticipada, ¿queda saldo sin ejecutar para anular?',
+        help: 'Indica si existe valor presupuestal no ejecutado que deba ser liberado/anulado.',
+        options: [
+          { label: 'Con saldo para anular', desc: 'Queda un valor sin ejecutar producto de la terminación anticipada.', templateKey: 'anticipada_con_saldo' },
+          { label: 'Sin saldo para anular', desc: 'El valor ejecutado cubre la totalidad del presupuesto.', templateKey: 'anticipada_sin_saldo' }
+        ]
+      }
+    };
+
+    function resetWizard() { state = initialState(); render(); }
+
+    function goBack() {
+      if (state.selectedTemplateKey) { state.selectedTemplateKey = null; render(); return; }
+      if (state.history.length > 0) { state.currentNodeId = state.history.pop(); render(); }
+    }
+
+    function selectOption(nextNodeId, templateKey) {
+      if (templateKey) state.selectedTemplateKey = templateKey;
+      else { state.history.push(state.currentNodeId); state.currentNodeId = nextNodeId; }
+      render();
+    }
+
+    function render() {
+      const container = document.getElementById('app-container');
+      if (!state.selectedTemplateKey) renderQuestionNode(container);
+      else renderFormView(container);
+    }
+
+    function renderQuestionNode(container) {
+      const node = DECISION_NODES[state.currentNodeId];
+      container.innerHTML = `
+        <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 fade-in">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-green-100 text-green-800">${node.step}</span>
+            ${state.history.length > 0 ? `<button onclick="goBack()" class="text-sm text-slate-500 hover:text-slate-800 font-semibold">← Paso anterior</button>` : ''}
+          </div>
+          <h2 class="text-2xl font-bold text-slate-900 mb-2">${node.question}</h2>
+          <p class="text-sm text-slate-600 mb-6">${node.help}</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            ${node.options.map(opt => `
+              <button onclick="selectOption('${opt.next || ''}', '${opt.templateKey || ''}')"
+                class="w-full text-left p-4 rounded-xl border-2 border-slate-200 hover:border-green-700 hover:bg-green-50/50 transition group">
+                <div class="font-bold text-slate-900 group-hover:text-green-800 text-base">${opt.label}</div>
+                <div class="text-xs text-slate-500 mt-1">${opt.desc}</div>
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderFormView(container) {
+      const tpl = TEMPLATES[state.selectedTemplateKey];
+      const f = state.form;
+
+      container.innerHTML = `
+        <div class="w-full space-y-5 fade-in">
+          <!-- ENCABEZADO -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-800">${tpl.badge}</span>
+              <h2 class="text-xl font-bold text-slate-900 mt-1.5">${tpl.title}</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Formato oficial institucional con escudo UNAL precargado automáticamente.</p>
+            </div>
+            <button onclick="goBack()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+              ← Cambiar tipo de acta
+            </button>
+          </div>
+
+          <!-- SECCIÓN 1: IDENTIFICACIÓN -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2">1. Identificación Contractual y Partes</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Tipo / Sigla</label>
+                <select onchange="fUpdate('sigla', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  ${['OPS','OSU','OCO','OCA','ATI'].map(s => `<option value="${s}" ${f.sigla===s?'selected':''}>${s}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Número de Orden</label>
+                <input type="text" value="${f.numero}" placeholder="Ej: 129" oninput="fUpdate('numero', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Año</label>
+                <input type="text" value="${f.anio}" oninput="fUpdate('anio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Fecha Firma Acta</label>
+                <input type="date" value="${f.fechaFirma}" oninput="fUpdate('fechaFirma', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+            </div>
+
+            <!-- CONTRATISTA -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700 uppercase">Datos del Contratista</span>
+                <div class="flex gap-4 text-xs font-semibold">
+                  <label class="flex items-center gap-1 cursor-pointer">
+                    <input type="radio" name="tpersona" ${f.tipoPersona==='natural'?'checked':''} onchange="fUpdate('tipoPersona','natural',true)"> Persona Natural
+                  </label>
+                  <label class="flex items-center gap-1 cursor-pointer">
+                    <input type="radio" name="tpersona" ${f.tipoPersona==='juridica'?'checked':''} onchange="fUpdate('tipoPersona','juridica',true)"> Persona Jurídica (Empresa)
+                  </label>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 mb-1">${f.tipoPersona==='juridica'?'Nombre Representante Legal':'Nombre Completo Contratista'}</label>
+                  <input type="text" value="${f.contratista}" oninput="fUpdate('contratista', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 mb-1">Cédula de Ciudadanía</label>
+                  <input type="text" value="${f.identificacion}" oninput="fUpdate('identificacion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 mb-1">Ciudad de Expedición C.C.</label>
+                  <input type="text" value="${f.ciudadExpedicion}" oninput="fUpdate('ciudadExpedicion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                </div>
+              </div>
+              ${f.tipoPersona === 'juridica' ? `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Razón Social de la Empresa</label>
+                    <input type="text" value="${f.empresaNombre}" oninput="fUpdate('empresaNombre', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">NIT de la Empresa</label>
+                    <input type="text" value="${f.empresaNit}" oninput="fUpdate('empresaNit', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- SUPERVISIÓN -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Rol de Seguimiento</label>
+                <select onchange="fUpdate('rolSupervision', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  ${['Supervisor','Supervisora','Interventor','Interventora'].map(r => `<option value="${r}" ${f.rolSupervision===r?'selected':''}>${r}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Nombre Supervisor(a) / Interventor(a)</label>
+                <input type="text" value="${f.supervisor}" oninput="fUpdate('supervisor', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Cédula (Opcional)</label>
+                <input type="text" value="${f.ccSupervisor}" oninput="fUpdate('ccSupervisor', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Objeto Contractual</label>
+              <textarea rows="2" oninput="fUpdate('objeto', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">${f.objeto}</textarea>
+            </div>
+          </div>
+
+          <!-- SECCIÓN 2: PLAZOS, PRÓRROGAS Y SUSPENSIONES -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2">2. Plazos, Prórrogas y Suspensiones (Cuadro 1)</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Plazo Inicial (días)</label>
+                <input type="number" value="${f.plazoInicial}" oninput="fUpdate('plazoInicial', this.value); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Plazo Total (días)</label>
+                <input type="text" id="disp-plazo-total" readonly class="w-full border border-slate-200 bg-slate-100 rounded-lg px-3 py-2 text-sm font-bold text-slate-700">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Fecha Inicio</label>
+                <input type="date" value="${f.fechaInicio}" oninput="fUpdate('fechaInicio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Fecha Terminación</label>
+                <input type="date" value="${f.fechaTerminacion}" oninput="fUpdate('fechaTerminacion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                <div class="text-xs font-bold text-slate-700">Prórrogas (0 o vacío = No Aplica)</div>
+                ${f.prorrogas.map((p, idx) => `
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-500 w-24">${(f.prorrogas.length>1 || Number(p)>0) ? `Prórroga No. ${idx+1}` : 'Prórroga'}</span>
+                    <input type="number" value="${p}" placeholder="0" oninput="updateArr('prorrogas', ${idx}, this.value)" class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white">
+                    ${idx > 0 ? `<button onclick="removeArr('prorrogas', ${idx})" class="text-xs text-red-600 font-bold px-2">✕</button>` : ''}
+                  </div>
+                `).join('')}
+                ${(Number(f.prorrogas[0]) > 0 || f.prorrogas.length > 1) ? `
+                  <button onclick="addArr('prorrogas')" class="text-xs font-bold text-green-700 hover:underline">+ Agregar Prórroga No. ${f.prorrogas.length + 1}</button>
+                ` : ''}
+              </div>
+
+              <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                <div class="text-xs font-bold text-slate-700">Suspensiones (0 o vacío = No Aplica)</div>
+                ${f.suspensiones.map((s, idx) => `
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-500 w-24">${(f.suspensiones.length>1 || Number(s)>0) ? `Suspensión No. ${idx+1}` : 'Suspensión'}</span>
+                    <input type="number" value="${s}" placeholder="0" oninput="updateArr('suspensiones', ${idx}, this.value)" class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white">
+                    ${idx > 0 ? `<button onclick="removeArr('suspensiones', ${idx})" class="text-xs text-red-600 font-bold px-2">✕</button>` : ''}
+                  </div>
+                `).join('')}
+                ${(Number(f.suspensiones[0]) > 0 || f.suspensiones.length > 1) ? `
+                  <button onclick="addArr('suspensiones')" class="text-xs font-bold text-green-700 hover:underline">+ Agregar Suspensión No. ${f.suspensiones.length + 1}</button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- SECCIÓN 3: GARANTÍAS / PÓLIZAS (OPCIONAL) -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-bold text-slate-800">3. Garantías / Pólizas (Opcional)</h3>
+              <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                <input type="checkbox" ${f.tienePolizas?'checked':''} onchange="fUpdate('tienePolizas', this.checked, true)"> La orden exigió pólizas
+              </label>
+            </div>
+            ${f.tienePolizas ? `
+              <div class="space-y-3 pt-2">
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 mb-1">Compañía Aseguradora</label>
+                  <input type="text" value="${f.aseguradora}" oninput="fUpdate('aseguradora', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                ${f.garantias.map((g, idx) => `
+                  <div class="grid grid-cols-2 sm:grid-cols-7 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs">
+                    <select onchange="updateGar(${idx},'tipo',this.value)" class="border rounded px-2 py-1 bg-white">
+                      <option value="Inicial" ${g.tipo==='Inicial'?'selected':''}>Inicial</option>
+                      <option value="Adición/Modificación" ${g.tipo==='Adición/Modificación'?'selected':''}>Adición/Modif.</option>
+                      <option value="Suspensión" ${g.tipo==='Suspensión'?'selected':''}>Suspensión</option>
+                    </select>
+                    <input type="text" placeholder="Garantía No." value="${g.numero}" oninput="updateGar(${idx},'numero',this.value)" class="border rounded px-2 py-1 bg-white">
+                    <input type="text" placeholder="Amparos" value="${g.amparos}" oninput="updateGar(${idx},'amparos',this.value)" class="border rounded px-2 py-1 bg-white">
+                    <input type="text" placeholder="Valor ($)" value="${g.valor}" oninput="updateGar(${idx},'valor',this.value)" class="border rounded px-2 py-1 bg-white">
+                    <input type="date" value="${g.inicio}" oninput="updateGar(${idx},'inicio',this.value)" class="border rounded px-2 py-1 bg-white">
+                    <input type="date" value="${g.fin}" oninput="updateGar(${idx},'fin',this.value)" class="border rounded px-2 py-1 bg-white">
+                    <div class="flex gap-1">
+                      <input type="date" value="${g.aprobacion}" oninput="updateGar(${idx},'aprobacion',this.value)" class="w-full border rounded px-2 py-1 bg-white">
+                      ${idx>0 ? `<button onclick="removeGar(${idx})" class="text-red-600 font-bold px-1">✕</button>` : ''}
+                    </div>
+                  </div>
+                `).join('')}
+                <button onclick="addGar()" class="text-xs font-bold text-green-700 hover:underline">+ Agregar fila de garantía</button>
+              </div>
+            ` : '<p class="text-xs text-slate-500">Marca la casilla si deseas incluir el cuadro de amparos y vigencias.</p>'}
+          </div>
+
+          <!-- SECCIÓN 4: BALANCE FINANCIERO Y PAGOS ORPA -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <h3 class="text-base font-bold text-slate-800 border-b pb-2">4. Balance Financiero y Pagos ORPA (Cuadro 2)</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Valor Inicial (1) ($)</label>
+                <input type="number" value="${f.valorInicial}" oninput="fUpdate('valorInicial', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Valor Adiciones (2) ($)</label>
+                <input type="number" value="${f.valorAdicion}" oninput="fUpdate('valorAdicion', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Causado sin pagar (4) ($)</label>
+                <input type="number" value="${f.valorPendiente}" oninput="fUpdate('valorPendiente', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+              </div>
+            </div>
+
+            <!-- PAGOS ORPA -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-700">Pagos efectuados al contratista (ORPA)</span>
+                <button onclick="addPago()" class="text-xs font-bold bg-green-700 text-white px-3 py-1 rounded-lg hover:bg-green-800">+ Agregar Pago ORPA</button>
+              </div>
+              ${f.pagos.map((p, idx) => `
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
+                  <input type="text" placeholder="ORPA No." value="${p.orpa}" oninput="updatePago(${idx},'orpa',this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
+                  <input type="date" value="${p.fecha}" oninput="updatePago(${idx},'fecha',this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
+                  <input type="number" placeholder="Valor ($)" value="${p.valor}" oninput="updatePago(${idx},'valor',Number(this.value)); calcAll()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
+                  <button onclick="removePago(${idx})" class="text-xs font-bold text-red-600 border border-red-200 bg-red-50 rounded-lg py-1.5">Eliminar pago</button>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- RESUMEN EN VIVO -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+              <div>
+                <div class="text-[11px] font-bold text-green-800 uppercase">Valor Total (1+2)</div>
+                <div id="sum-total" class="text-base font-bold text-slate-900">$0</div>
+              </div>
+              <div>
+                <div class="text-[11px] font-bold text-green-800 uppercase">Pagado a la fecha (3)</div>
+                <div id="sum-pagado" class="text-base font-bold text-slate-900">$0</div>
+              </div>
+              <div>
+                <div class="text-[11px] font-bold text-green-800 uppercase">Total Ejecutado (3+4)</div>
+                <div id="sum-ejecutado" class="text-base font-bold text-slate-900">$0</div>
+              </div>
+              <div>
+                <div class="text-[11px] font-bold text-green-800 uppercase">Saldo a Anular</div>
+                <div id="sum-anular" class="text-base font-bold text-green-900">$0</div>
+              </div>
+            </div>
+
+            ${tpl.hasSaldoAnular ? `
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Justificación del saldo sin ejecutar por anular</label>
+                <textarea rows="2" placeholder="Indique brevemente el motivo por el cual quedó saldo sin ejecutar..." oninput="fUpdate('justificacionSaldo', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">${f.justificacionSaldo}</textarea>
+              </div>
+            ` : ''}
+
+            ${tpl.isAnticipada ? `
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 mb-1">Fecha de terminación anticipada</label>
+                  <input type="date" value="${f.fechaAnticipada}" oninput="fUpdate('fechaAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-600 mb-1">Motivo de la terminación anticipada</label>
+                  <input type="text" value="${f.motivoAnticipada}" oninput="fUpdate('motivoAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- BOTÓN DIRECTO DE DESCARGA + ENLACE COMPATIBLE CON GOOGLE SITES -->
+          <div class="pb-10 space-y-3">
+            <button id="btn-download" onclick="generateDirectDocx()" class="w-full unal-green unal-green-hover text-white font-bold py-4 px-6 rounded-2xl shadow-md text-base transition">
+              ⬇ Generar y Descargar Acta Oficial (.docx)
+            </button>
+            <div id="download-ready-box" class="hidden bg-blue-50 border border-blue-300 rounded-2xl p-4 text-center space-y-2">
+              <div class="text-sm font-bold text-blue-950">✅ ¡Tu documento Word está listo!</div>
+              <p class="text-xs text-blue-800">Si tu navegador no inició la descarga automática, haz clic en el botón azul de abajo:</p>
+              <a id="direct-download-link" href="#" download="Acta.docx" class="inline-block bg-blue-700 hover:bg-blue-800 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow">
+                📥 Guardar archivo Word (.docx) ahora
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+      calcAll();
+    }
+
+    function fUpdate(key, val, rerender = false) { state.form[key] = val; if (rerender) render(); }
+    function updateArr(key, idx, val) {
+      const prev = Number(state.form[key][0]) > 0;
+      state.form[key][idx] = val;
+      const now = Number(state.form[key][0]) > 0;
+      if (prev !== now && state.form[key].length === 1) render(); else calcAll();
+    }
+    function addArr(key) { state.form[key].push(''); render(); }
+    function removeArr(key, idx) { state.form[key].splice(idx, 1); render(); }
+    function addGar() { state.form.garantias.push({ tipo: 'Inicial', numero: '', amparos: '', valor: '', inicio: '', fin: '', aprobacion: '' }); render(); }
+    function removeGar(idx) { state.form.garantias.splice(idx, 1); render(); }
+    function updateGar(idx, k, v) { state.form.garantias[idx][k] = v; }
+    function addPago() { state.form.pagos.push({ orpa: '', fecha: '', valor: 0 }); render(); }
+    function removePago(idx) { state.form.pagos.splice(idx, 1); render(); }
+    function updatePago(idx, k, v) { state.form.pagos[idx][k] = v; }
+
+    function calcAll() {
+      const f = state.form;
+      const pIni = Number(f.plazoInicial) || 0;
+      const pPro = f.prorrogas.reduce((a, b) => a + (Number(b) || 0), 0);
+      const pSus = f.suspensiones.reduce((a, b) => a + (Number(b) || 0), 0);
+      const pTot = pIni + pPro + pSus;
+      const elPlazo = document.getElementById('disp-plazo-total');
+      if (elPlazo) elPlazo.value = pTot ? `${pTot} días` : '';
+
+      const vIni = Number(f.valorInicial) || 0;
+      const vAdi = Number(f.valorAdicion) || 0;
+      const vTot = vIni + vAdi;
+      const vPag = f.pagos.reduce((a, p) => a + (Number(p.valor) || 0), 0);
+      const vPen = Number(f.valorPendiente) || 0;
+      const vEje = vPag + vPen;
+      const vAnu = vTot - vEje;
+
+      const fmt = n => '$' + n.toLocaleString('es-CO');
+      if (document.getElementById('sum-total')) document.getElementById('sum-total').innerText = fmt(vTot);
+      if (document.getElementById('sum-pagado')) document.getElementById('sum-pagado').innerText = fmt(vPag);
+      if (document.getElementById('sum-ejecutado')) document.getElementById('sum-ejecutado').innerText = fmt(vEje);
+      if (document.getElementById('sum-anular')) document.getElementById('sum-anular').innerText = fmt(vAnu);
+    }
+
+    function formatDateLong(iso) {
+      if (!iso) return 'día de mes de 2026';
+      const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      const [y, m, d] = iso.split('-');
+      return `${parseInt(d,10)} de ${meses[parseInt(m,10)-1]} de ${y}`;
+    }
+
+    function formatDateShort(iso) {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function setCellText(tc, text) {
+      const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+      let p = tc.getElementsByTagNameNS(ns, 'p')[0];
+      if (!p) {
+        p = tc.ownerDocument.createElementNS(ns, 'w:p');
+        tc.appendChild(p);
+      }
+      const runs = Array.from(p.getElementsByTagNameNS(ns, 'r'));
+      if (runs.length > 0) {
+        let t = runs[0].getElementsByTagNameNS(ns, 't')[0];
+        if (!t) {
+          t = tc.ownerDocument.createElementNS(ns, 'w:t');
+          runs[0].appendChild(t);
+        }
+        t.textContent = text;
+        for (let i = 1; i < runs.length; i++) p.removeChild(runs[i]);
+      } else {
+        const r = tc.ownerDocument.createElementNS(ns, 'w:r');
+        const rPr = tc.ownerDocument.createElementNS(ns, 'w:rPr');
+        const rFonts = tc.ownerDocument.createElementNS(ns, 'w:rFonts');
+        rFonts.setAttribute('w:ascii', 'Calibri');
+        rFonts.setAttribute('w:hAnsi', 'Calibri');
+        const sz = tc.ownerDocument.createElementNS(ns, 'w:sz');
+        sz.setAttribute('w:val', '22');
+        rPr.appendChild(rFonts);
+        rPr.appendChild(sz);
+        const t = tc.ownerDocument.createElementNS(ns, 'w:t');
+        t.textContent = text;
+        r.appendChild(rPr);
+        r.appendChild(t);
+        p.appendChild(r);
+      }
+      const allPs = Array.from(tc.getElementsByTagNameNS(ns, 'p'));
+      for (let i = 1; i < allPs.length; i++) tc.removeChild(allPs[i]);
+    }
+
+    function replaceParagraphTexts(xmlDoc, replacements) {
+      const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+      const paragraphs = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'p'));
+      paragraphs.forEach(p => {
+        const runs = Array.from(p.getElementsByTagNameNS(ns, 'r'));
+        if (!runs.length) return;
+        const fullText = runs.map(r => Array.from(r.getElementsByTagNameNS(ns, 't')).map(t => t.textContent).join('')).join('');
+        let updated = fullText;
+        let changed = false;
+        for (const [target, val] of replacements) {
+          if (updated.includes(target)) {
+            updated = updated.split(target).join(val);
+            changed = true;
+          }
+        }
+        if (changed) {
+          let firstT = runs[0].getElementsByTagNameNS(ns, 't')[0];
+          if (!firstT) {
+            firstT = xmlDoc.createElementNS(ns, 'w:t');
+            runs[0].appendChild(firstT);
+          }
+          firstT.setAttribute('xml:space', 'preserve');
+          firstT.textContent = updated;
+          for (let i = 1; i < runs.length; i++) {
+            const ts = Array.from(runs[i].getElementsByTagNameNS(ns, 't'));
+            ts.forEach(t => t.textContent = '');
+          }
+        }
+      });
+    }
+
+    async function generateDirectDocx() {
+      const btn = document.getElementById('btn-download');
+      const tpl = TEMPLATES[state.selectedTemplateKey];
+      const f = state.form;
+
+      btn.disabled = true;
+      btn.innerText = '⏳ Generando documento oficial desde plantilla UNAL...';
+
+      try {
+        const resp = await fetch(tpl.url);
+        if (!resp.ok) throw new Error('No se encontró la plantilla en GitHub (' + resp.status + ').');
+        const buffer = await resp.arrayBuffer();
+
+        const zip = new PizZip(buffer);
+        const parser = new DOMParser();
+        const serializer = new XMLSerializer();
+        const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+
+        const esNuevaDecana = !f.fechaFirma || f.fechaFirma >= '2026-10-01';
+        const decana = esNuevaDecana ? 'LIBIA DENISE CANGREJO ALJURE' : 'SONIA ESPERANZA MONROY VARELA';
+        const ccDecana = esNuevaDecana ? '51.895.607' : '35.498.777';
+
+        const esFem = f.rolSupervision === 'Supervisora' || f.rolSupervision === 'Interventora';
+        const artRol = esFem ? 'la' : 'el';
+        const rolLower = f.rolSupervision.toLowerCase();
+
+        const pIni = Number(f.plazoInicial) || 0;
+        const prorrogasAct = f.prorrogas.filter(x => Number(x) > 0);
+        const suspensionesAct = f.suspensiones.filter(x => Number(x) > 0);
+        const pTot = pIni + prorrogasAct.reduce((a,b)=>a+Number(b),0) + suspensionesAct.reduce((a,b)=>a+Number(b),0);
+
+        const vIni = Number(f.valorInicial) || 0;
+        const vAdi = Number(f.valorAdicion) || 0;
+        const vTot = vIni + vAdi;
+        const vPag = f.pagos.reduce((a, p) => a + (Number(p.valor) || 0), 0);
+        const vPen = Number(f.valorPendiente) || 0;
+        const vEje = vPag + vPen;
+        const vAnu = vTot - vEje;
+        const fmt = n => '$' + n.toLocaleString('es-CO');
+
+        const tipoOrdenNombre = NOMBRE_ORDEN_MAP[f.sigla] || f.sigla;
+        const refOrdenUpper = `${tipoOrdenNombre} ${f.sigla} No. ${f.numero || '___'} de ${f.anio}`;
+        const refOrdenLower = `${tipoOrdenNombre.toLowerCase()} ${f.sigla} No. ${f.numero || '___'} de ${f.anio}`;
+        const contratistaHeader = f.tipoPersona === 'juridica' ? (f.empresaNombre || f.contratista) : f.contratista;
+
+        const clausulaContratista = f.tipoPersona === 'juridica'
+          ? `${f.contratista || '___'}, identificado(a) con cédula de ciudadanía ${f.identificacion || '___'} expedida en ${f.ciudadExpedicion || 'Bogotá D.C.'}, en su calidad de representante legal de la empresa ${f.empresaNombre || '___'}, identificada con NIT ${f.empresaNit || '___'}, según certificado de existencia y representación legal expedido por la Cámara de Comercio`
+          : `${f.contratista || '___'}, identificado(a) con cédula de ciudadanía ${f.identificacion || '___'} expedida en ${f.ciudadExpedicion || 'Bogotá D.C.'}`;
+
+        const textReplacements = [
+          ['CONTRATO/ ORDEN CONTRACTUAL DE  Tipo de orden # de orden de AÑO', `CONTRATO / ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
+          ['Tipo de orden # de orden de AÑO', refOrdenLower],
+          ['Número de orden', f.numero || '___'],
+          ['AÑO', f.anio || '2026'],
+          ['Nombre de contratista o Empresa', contratistaHeader || '___'],
+          ['LIBIA DENISE CANGREJO ALJURE', decana],
+          ['51.895.607', ccDecana],
+          ['nombre del representante legal de la persona jurídica o del contratista persona natural, identificado(a) con cédula de ciudadanía número de la cédula de ciudadanía expedida en ciudad de expedición, en su calidad de representante legal de la empresa: nombre de la empresa, identificada con NIT (número de NIT), según certificado de existencia y representación legal expedido por la Cámara de Comercio: aplicable para persona jurídica', clausulaContratista],
+          ['(nombre de la aseguradora)', f.tienePolizas && f.aseguradora ? f.aseguradora : 'No Aplica'],
+          ['$ Valor Inicial', fmt(vIni)],
+          ['$ Valor Total', fmt(vTot)],
+          ['$ Valor por anular', fmt(vAnu)],
+          ['$ Valor que se le debe a contratista', fmt(vPen)],
+          ['(indicar brevemente el motivo del saldo sin ejecutar)', f.justificacionSaldo || 'el valor no ejecutado durante el plazo contractual'],
+          ['indicar brevemente el motivo del saldo sin ejecutar', f.justificacionSaldo || 'el valor no ejecutado durante el plazo contractual'],
+          ['El interventor/supervisor', `${artRol.charAt(0).toUpperCase() + artRol.slice(1)} ${rolLower}`],
+          ['el interventor/supervisor', `${artRol} ${rolLower}`],
+          ['y el supervisor', `y ${artRol} ${rolLower}`],
+          ['día de mes de 202X. (Nota: Debe ser posterior al último pago registrado en la ORPA, si aplica).', `${formatDateLong(f.fechaFirma)}.`],
+          ['Nombre del contratista o Rep. Legal', f.contratista || '___'],
+          ['(CONTRATISTA O REPRESENTANTE LEGAL)', f.tipoPersona === 'juridica' ? 'REPRESENTANTE LEGAL' : 'CONTRATISTA'],
+          ['( CONTRATISTA O REPRESENTANTE LEGAL)', f.tipoPersona === 'juridica' ? 'REPRESENTANTE LEGAL' : 'CONTRATISTA'],
+          ['Nombre de empresa (Si es contratista se elimina)', f.tipoPersona === 'juridica' ? (f.empresaNombre || '') : ''],
+          ['Nombre del Interventor(a)/Supervisor(a)', f.supervisor || '___'],
+          ['Interventor(a)/Supervisor(a)', f.rolSupervision]
+        ];
+
+        const xmlFiles = Object.keys(zip.files).filter(name =>
+          name === 'word/document.xml' || name.startsWith('word/header') || name.startsWith('word/footer')
+        );
+
+        xmlFiles.forEach(fileName => {
+          const xmlStr = zip.file(fileName).asText();
+          const xmlDoc = parser.parseFromString(xmlStr, 'application/xml');
+          replaceParagraphTexts(xmlDoc, textReplacements);
+
+          if (fileName === 'word/document.xml') {
+            const rows = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'tr'));
+            let pagoRowIdx = 0;
+
+            rows.forEach(tr => {
+              const cells = Array.from(tr.getElementsByTagNameNS(ns, 'tc'));
+              if (!cells.length) return;
+              const c0 = cells[0].textContent.trim().toUpperCase();
+
+              if (c0.startsWith('OBJETO') && cells[1]) setCellText(cells[1], f.objeto || '');
+              else if (c0.startsWith('PLAZO INICIAL') && cells[1]) setCellText(cells[1], pIni ? `${pIni} días` : '');
+              else if (c0.startsWith('PRÓRROGA') && cells[1]) {
+                setCellText(cells[1], prorrogasAct.length ? prorrogasAct.map((d,i)=>`Prórroga No. ${i+1}: ${d} días`).join(' / ') : 'No Aplica');
+              }
+              else if (c0.startsWith('SUSPENSIÓN') && cells[1]) {
+                setCellText(cells[1], suspensionesAct.length ? suspensionesAct.map((d,i)=>`Suspensión No. ${i+1}: ${d} días`).join(' / ') : 'No Aplica');
+              }
+              else if (c0.startsWith('PLAZO TOTAL') && cells[1]) setCellText(cells[1], pTot ? `${pTot} días` : '');
+              else if (c0.startsWith('FECHA DE INICIO') && cells[1]) setCellText(cells[1], formatDateShort(f.fechaInicio));
+              else if (c0.startsWith('FECHA DE TERMINACIÓN') && cells[1]) setCellText(cells[1], formatDateShort(f.fechaTerminacion));
+              else if (c0.startsWith('VALOR ADICIÓN') && cells[1]) setCellText(cells[1], fmt(vAdi));
+              else if (c0.startsWith('INTERVENTOR/SUPERVISOR') && cells[1]) {
+                setCellText(cells[0], `${f.rolSupervision.toUpperCase()}:`);
+                setCellText(cells[1], f.supervisor || '');
+              }
+
+              if (c0.includes('VALOR DE LAS ADICIONES (2)') && cells[1]) setCellText(cells[1], fmt(vAdi));
+              else if (c0.includes('VALOR PAGADO A LA FECHA (3)') && cells[1]) setCellText(cells[1], fmt(vPag));
+              else if (c0.includes('VALOR TOTAL EJECUTADO (3) + (4)') && cells[1]) setCellText(cells[1], fmt(vEje));
+
+              if (cells.length >= 7 && (c0.includes('VALOR INICIAL (1)') || c0 === '' || c0.includes('VALOR DE LAS ADICIONES') || c0.includes('VALOR TOTAL') || c0.includes('VALOR PAGADO') || c0.includes('VALOR CAUSADO') || c0.includes('VALOR DE SALDO'))) {
+                const c3Text = cells[3].textContent.trim().toUpperCase();
+                if (c3Text.includes('VALOR PAGADO A LA FECHA (3)') && cells[4]) {
+                  setCellText(cells[4], fmt(vPag));
+                } else if (!c3Text.includes('PAGO NO') && pagoRowIdx < f.pagos.length) {
+                  const p = f.pagos[pagoRowIdx++];
+                  setCellText(cells[3], String(pagoRowIdx));
+                  setCellText(cells[4], p.orpa || '');
+                  setCellText(cells[5], formatDateShort(p.fecha));
+                  setCellText(cells[6], fmt(Number(p.valor) || 0));
+                }
+              }
+            });
+          }
+
+          zip.file(fileName, serializer.serializeToString(xmlDoc));
+        });
+
+        const out = zip.generate({
+          type: 'blob',
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+
+        const fileName = `Acta_Liquidacion_${f.sigla}_${f.numero || 'SN'}_${f.anio}.docx`;
+        const blobUrl = URL.createObjectURL(out);
+
+        // Mostramos enlace directo compatible con el sandbox de Google Sites
+        const box = document.getElementById('download-ready-box');
+        const link = document.getElementById('direct-download-link');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.innerText = `📥 Guardar "${fileName}" ahora`;
+        box.classList.remove('hidden');
+
+        // Intentamos descarga directa adicional
+        link.click();
+      } catch (err) {
+        alert('Error al generar el documento: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '⬇ Generar y Descargar Acta Oficial (.docx)';
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
