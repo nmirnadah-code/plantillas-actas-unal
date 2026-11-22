@@ -468,7 +468,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
                   <input type="text" placeholder="ORPA No." value="${p.orpa}" oninput="updatePago(${idx},'orpa',this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
                   <input type="date" value="${p.fecha}" oninput="updatePago(${idx},'fecha',this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
-                  <input type="number" placeholder="Valor (\$)" value="${p.valor}" oninput="updatePago(${idx},'valor',Number(this.value)); calcAll()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
+                  <input type="number" placeholder="Valor ($)" value="${p.valor}" oninput="updatePago(${idx},'valor',Number(this.value)); calcAll()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
                   <button onclick="removePago(${idx})" class="text-xs font-bold text-red-600 border border-red-200 bg-red-50 rounded-lg py-1.5">Eliminar pago</button>
                 </div>
               `).join('')}
@@ -584,7 +584,26 @@
       return `${d}/${m}/${y}`;
     }
 
+    // ELIMINA LOS CONTROLES DE CONTENIDO OCULTOS (<w:sdt>) DE WORD MANTENIENDO SU TEXTO LIMPIO
+    function unwrapAllSdt(xmlDoc) {
+      const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+      let sdts = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'sdt'));
+      while (sdts.length > 0) {
+        const sdt = sdts[0];
+        const parent = sdt.parentNode;
+        const sdtContent = sdt.getElementsByTagNameNS(ns, 'sdtContent')[0];
+        if (sdtContent && parent) {
+          while (sdtContent.firstChild) {
+            parent.insertBefore(sdtContent.firstChild, sdt);
+          }
+        }
+        if (parent) parent.removeChild(sdt);
+        sdts = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'sdt'));
+      }
+    }
+
     function setCellText(tc, text) {
+      if (!tc) return;
       const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
       let p = tc.getElementsByTagNameNS(ns, 'p')[0];
       if (!p) {
@@ -660,7 +679,7 @@
       btn.innerText = '⏳ Generando documento oficial desde plantilla UNAL...';
 
       try {
-        const resp = await fetch(tpl.url);
+        const resp = await fetch(`${tpl.url}?v=${Date.now()}`);
         if (!resp.ok) throw new Error('No se encontró la plantilla en GitHub (' + resp.status + ').');
         const buffer = await resp.arrayBuffer();
 
@@ -702,6 +721,7 @@
 
         const textReplacements = [
           ['CONTRATO/ ORDEN CONTRACTUAL DE  Tipo de orden # de orden de AÑO', `CONTRATO / ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
+          ['CONTRATO/ ORDEN CONTRACTUAL DE Tipo de orden # de orden de AÑO', `CONTRATO / ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
           ['Tipo de orden # de orden de AÑO', refOrdenLower],
           ['Número de orden', f.numero || '___'],
           ['AÑO', f.anio || '2026'],
@@ -735,6 +755,11 @@
         xmlFiles.forEach(fileName => {
           const xmlStr = zip.file(fileName).asText();
           const xmlDoc = parser.parseFromString(xmlStr, 'application/xml');
+
+          // 1. Limpiar controles de contenido (<w:sdt>) ocultos de Word
+          unwrapAllSdt(xmlDoc);
+
+          // 2. Reemplazar textos del documento
           replaceParagraphTexts(xmlDoc, textReplacements);
 
           if (fileName === 'word/document.xml') {
@@ -763,4 +788,92 @@
                   else if (c0.startsWith('FECHA DE INICIO')) setCellText(cells[1], formatDateShort(f.fechaInicio));
                   else if (c0.startsWith('FECHA DE TERMINACIÓN')) setCellText(cells[1], formatDateShort(f.fechaTerminacion));
                   else if (c0.startsWith('VALOR ADICIÓN')) setCellText(cells[1], fmt(vAdi));
-                  else if (c0.
+                  else if (c0.startsWith('INTERVENTOR/SUPERVISOR')) {
+                    setCellText(cells[0], `${f.rolSupervision.toUpperCase()}:`);
+                    setCellText(cells[1], f.supervisor || '');
+                  }
+                });
+              }
+
+              // TABLA 2: GARANTÍAS / PÓLIZAS
+              else if (tblText.includes('VIGENCIA DE LOS AMPAROS')) {
+                if (f.tienePolizas) {
+                  let garIdx = 0;
+                  rows.forEach((tr, rIdx) => {
+                    if (rIdx < 2) return;
+                    const cells = Array.from(tr.getElementsByTagNameNS(ns, 'tc'));
+                    if (cells.length >= 7 && garIdx < f.garantias.length) {
+                      const g = f.garantias[garIdx++];
+                      setCellText(cells[0], g.tipo || 'Inicial');
+                      setCellText(cells[1], g.numero || '');
+                      setCellText(cells[2], g.amparos || '');
+                      setCellText(cells[3], g.valor ? '$' + Number(g.valor).toLocaleString('es-CO') : '');
+                      setCellText(cells[4], formatDateShort(g.inicio));
+                      setCellText(cells[5], formatDateShort(g.fin));
+                      setCellText(cells[6], formatDateShort(g.aprobacion));
+                    }
+                  });
+                }
+              }
+
+              // TABLA 3: BALANCE FINANCIERO Y PAGOS ORPA
+              else if (tblText.includes('BALANCE FINANCIERO')) {
+                let pagoRowIdx = 0;
+                rows.forEach((tr, rIdx) => {
+                  const cells = Array.from(tr.getElementsByTagNameNS(ns, 'tc'));
+                  if (!cells.length) return;
+                  const c0 = cells[0].textContent.trim().toUpperCase();
+
+                  if (c0.includes('VALOR DE LAS ADICIONES (2)') && cells[1]) setCellText(cells[1], fmt(vAdi));
+                  else if (c0.includes('VALOR PAGADO A LA FECHA (3)') && cells[1]) setCellText(cells[1], fmt(vPag));
+                  else if (c0.includes('VALOR TOTAL EJECUTADO (3) + (4)') && cells[1]) setCellText(cells[1], fmt(vEje));
+
+                  for (let i = 1; i < cells.length; i++) {
+                    if (cells[i].textContent.trim().toUpperCase().includes('VALOR PAGADO A LA FECHA (3)')) {
+                      if (cells[i + 1]) setCellText(cells[i + 1], fmt(vPag));
+                    }
+                  }
+
+                  if (rIdx >= 3 && cells.length >= 7 && pagoRowIdx < f.pagos.length) {
+                    const p = f.pagos[pagoRowIdx++];
+                    setCellText(cells[3], String(pagoRowIdx));
+                    setCellText(cells[4], p.orpa || '');
+                    setCellText(cells[5], formatDateShort(p.fecha));
+                    setCellText(cells[6], fmt(Number(p.valor) || 0));
+                  }
+                });
+              }
+            });
+          }
+
+          zip.file(fileName, serializer.serializeToString(xmlDoc));
+        });
+
+        const out = zip.generate({
+          type: 'blob',
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+
+        const fileName = `Acta_Liquidacion_${f.sigla}_${f.numero || 'SN'}_${f.anio}.docx`;
+        const blobUrl = URL.createObjectURL(out);
+
+        const box = document.getElementById('download-ready-box');
+        const link = document.getElementById('direct-download-link');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.innerText = `📥 Guardar "${fileName}" ahora`;
+        box.classList.remove('hidden');
+
+        link.click();
+      } catch (err) {
+        alert('Error al generar el documento: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '⬇ Generar y Descargar Acta Oficial (.docx)';
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
