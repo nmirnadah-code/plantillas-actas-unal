@@ -69,7 +69,7 @@
       </div>
       <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
         <p><strong>1. Diagnóstico guiado:</strong> Responde las preguntas sobre ejecución y saldos para identificar automáticamente la minuta oficial aplicable.</p>
-        <p><strong>2. Diligenciamiento directo:</strong> Completa los datos del contrato, fechas, pólizas (si aplica) y pagos ORPA. El sistema calcula plazos totales y balances automáticamente.</p>
+        <p><strong>2. Diligenciamiento directo:</strong> Completa los datos del contrato, fechas, pólizas (si aplica) y pagos ORPA. El sistema formatea cédulas y cifras automáticamente.</p>
         <p><strong>3. Exportación oficial:</strong> Al pulsar <strong>Descargar Word (.docx)</strong>, se genera el documento institucional oficial con encabezado, escudo de la UNAL y tipografía Calibri 11pt.</p>
       </div>
       <div class="text-right pt-2">
@@ -147,13 +147,19 @@
       }
     };
 
-    const NOMBRE_ORDEN_MAP = {
-      OSU: 'SUMINISTRO',
-      OPS: 'PRESTACIÓN DE SERVICIOS',
-      OCO: 'COMPRA',
-      OCA: 'ARRENDAMIENTO',
-      ATI: 'ADICIÓN / OTROSÍ'
-    };
+    const SIGLAS_CATALOG = [
+      { code: 'OPS', label: 'OPS - Orden Contractual de Prestación de servicios personales de apoyo a la gestión', docName: 'PRESTACIÓN DE SERVICIOS PERSONALES DE APOYO A LA GESTIÓN' },
+      { code: 'OSE', label: 'OSE - Orden Contractual de Servicios', docName: 'SERVICIOS' },
+      { code: 'OSU', label: 'OSU - Orden Contractual de Suministro', docName: 'SUMINISTRO' },
+      { code: 'OCO', label: 'OCO - Orden Contractual de Consultoría', docName: 'CONSULTORÍA' },
+      { code: 'OCA', label: 'OCA - Orden Contractual de Arrendamiento', docName: 'ARRENDAMIENTO' },
+      { code: 'ODC', label: 'ODC - Orden Contractual (Compra)', docName: 'COMPRA' },
+      { code: 'ODO', label: 'ODO - Orden Contractual de Obra', docName: 'OBRA' },
+      { code: 'OFO', label: 'OFO - Orden Contractual de Consultoría Vig Futura', docName: 'CONSULTORÍA VIGENCIA FUTURA' },
+      { code: 'OFS', label: 'OFS - Orden Contractual Vig Futura', docName: 'ORDEN CONTRACTUAL VIGENCIA FUTURA' },
+      { code: 'OSF', label: 'OSF - Orden Contractual de Prestación de Servicios Futura', docName: 'PRESTACIÓN DE SERVICIOS FUTURA' },
+      { code: 'ATI', label: 'ATI - Adición / Otrosí', docName: 'ADICIÓN / OTROSÍ' }
+    ];
 
     const initialState = () => ({
       currentNodeId: 'ejecucion',
@@ -162,11 +168,12 @@
       selectedTemplateKey: null,
       showPreview: false,
       form: {
-        sigla: 'OSU',
+        sigla: 'OPS',
         numero: '',
         anio: '2026',
         fechaFirma: '2026-11-21',
         tipoPersona: 'natural',
+        genero: 'M',
         contratista: '',
         identificacion: '',
         ciudadExpedicion: 'Bogotá D.C.',
@@ -187,7 +194,7 @@
         tienePolizas: false,
         aseguradora: '',
         garantias: [
-          { tipo: 'Inicial', numero: '', amparos: '', valor: '', inicio: '', fin: '', aprobacion: '' }
+          { tipo: 'Inicial', numero: '', amparos: '', valor: 0, inicio: '', fin: '', aprobacion: '' }
         ],
         pagos: [{ orpa: '', fecha: '', valor: 0 }],
         justificacionSaldo: '',
@@ -251,6 +258,61 @@
         ]
       }
     };
+
+    // HELPERS DE FORMATEO EN TIEMPO REAL
+    function formatDotsOnly(val) {
+      const digits = String(val || '').replace(/\D/g, '');
+      if (!digits) return '';
+      return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
+    function formatCurrencyInput(num) {
+      const n = Number(num) || 0;
+      if (!n) return '';
+      return '$ ' + n.toLocaleString('es-CO');
+    }
+
+    function parseMoney(str) {
+      const digits = String(str || '').replace(/\D/g, '');
+      return digits ? parseInt(digits, 10) : 0;
+    }
+
+    function handleCedulaInput(el, fieldKey) {
+      const formatted = formatDotsOnly(el.value);
+      el.value = formatted;
+      state.form[fieldKey] = formatted;
+    }
+
+    function handleMoneyInput(el, fieldKey) {
+      const num = parseMoney(el.value);
+      state.form[fieldKey] = num;
+      el.value = num ? '$ ' + num.toLocaleString('es-CO') : '';
+      calcAll();
+    }
+
+    function handlePagoMoneyInput(el, idx) {
+      const num = parseMoney(el.value);
+      state.form.pagos[idx].valor = num;
+      el.value = num ? '$ ' + num.toLocaleString('es-CO') : '';
+      calcAll();
+    }
+
+    function handleGarMoneyInput(el, idx) {
+      const num = parseMoney(el.value);
+      state.form.garantias[idx].valor = num;
+      el.value = num ? '$ ' + num.toLocaleString('es-CO') : '';
+    }
+
+    function handleFechaFirmaChange(val) {
+      state.form.fechaFirma = val;
+      const esNuevaDecana = !val || val >= '2026-10-01';
+      const decanaNombre = esNuevaDecana ? 'LIBIA DENISE CANGREJO ALJURE' : 'SONIA ESPERANZA MONROY VARELA';
+      const decanaCC = esNuevaDecana ? '51.895.607' : '35.498.777';
+      const card = document.getElementById('decana-info-text');
+      if (card) {
+        card.innerHTML = `Según la fecha de firma (${esNuevaDecana ? 'a partir del 01/10/2026' : 'anterior al 01/10/2026'}), el acta se genera automáticamente a nombre de la Decana <strong>${decanaNombre}</strong> (C.C. ${decanaCC}).`;
+      }
+    }
 
     function toggleModal(show) {
       document.getElementById('help-modal').classList.toggle('hidden', !show);
@@ -363,6 +425,7 @@
       const esNuevaDecana = !f.fechaFirma || f.fechaFirma >= '2026-10-01';
       const decanaNombre = esNuevaDecana ? 'LIBIA DENISE CANGREJO ALJURE' : 'SONIA ESPERANZA MONROY VARELA';
       const decanaCC = esNuevaDecana ? '51.895.607' : '35.498.777';
+      const siglaObj = SIGLAS_CATALOG.find(s => s.code === f.sigla) || SIGLAS_CATALOG[0];
 
       container.innerHTML = `
         <div class="w-full fade-in">
@@ -405,10 +468,10 @@
             ${state.showPreview ? `
               <div class="mx-6 mt-5 bg-slate-50 border border-slate-300 rounded-xl p-5 text-xs space-y-2 text-slate-800">
                 <div class="font-bold text-slate-900 uppercase border-b pb-1">Vista previa de encabezado y cifras</div>
-                <p><strong>Orden:</strong> CONTRATO / ORDEN CONTRACTUAL DE ${NOMBRE_ORDEN_MAP[f.sigla] || f.sigla} ${f.sigla} No. ${f.numero || '___'} de ${f.anio}</p>
-                <p><strong>Contratista:</strong> ${f.tipoPersona === 'juridica' ? (f.empresaNombre || '___') + ' (Rep. Legal: ' + (f.contratista || '___') + ')' : (f.contratista || '___')}</p>
+                <p><strong>Orden:</strong> ORDEN CONTRACTUAL DE ${siglaObj.docName} ${f.sigla} No. ${f.numero || '___'} de ${f.anio}</p>
+                <p><strong>Contratista:</strong> ${f.tipoPersona === 'juridica' ? (f.empresaNombre || '___') + ' (Rep. Legal: ' + (f.contratista || '___') + ', ' + (f.genero==='F'?'identificada':'identificado') + ' con C.C. ' + (f.identificacion || '___') + ')' : (f.contratista || '___') + ' (' + (f.genero==='F'?'identificada':'identificado') + ' con C.C. ' + (f.identificacion || '___') + ')'}</p>
                 <p><strong>Ordenadora del Gasto:</strong> ${decanaNombre} (C.C. ${decanaCC})</p>
-                <p><strong>Objeto:</strong> ${f.objeto || 'Sin diligenciar'}</p>
+                <p><strong>Garantías:</strong> ${f.tienePolizas ? 'Incluye cuadro de garantías (' + (f.aseguradora || 'Sin aseguradora') + ')' : 'No aplica (Se omite cuadro de garantías)'}</p>
               </div>
             ` : ''}
 
@@ -429,28 +492,24 @@
                 </div>
 
                 <!-- FILA 1: TIPO, NÚMERO, AÑO, FECHA -->
-                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
-                  <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo / Sigla</label>
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
+                  <div class="sm:col-span-5">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo / Sigla de Orden Contractual</label>
                     <select onchange="fUpdate('sigla', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
-                      <option value="OSU" ${f.sigla==='OSU'?'selected':''}>OSU (Suministro)</option>
-                      <option value="OPS" ${f.sigla==='OPS'?'selected':''}>OPS (Prestación de Servicios)</option>
-                      <option value="OCO" ${f.sigla==='OCO'?'selected':''}>OCO (Compra)</option>
-                      <option value="OCA" ${f.sigla==='OCA'?'selected':''}>OCA (Arrendamiento)</option>
-                      <option value="ATI" ${f.sigla==='ATI'?'selected':''}>ATI (Adición / Otrosí)</option>
+                      ${SIGLAS_CATALOG.map(s => `<option value="${s.code}" ${f.sigla===s.code?'selected':''}>${s.label}</option>`).join('')}
                     </select>
                   </div>
-                  <div>
+                  <div class="sm:col-span-2">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Número de Orden</label>
                     <input type="text" value="${f.numero}" placeholder="Ej: 64" oninput="fUpdate('numero', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
-                  <div>
+                  <div class="sm:col-span-2">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Año</label>
                     <input type="text" value="${f.anio}" oninput="fUpdate('anio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
-                  <div>
+                  <div class="sm:col-span-3">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Firma del Acta</label>
-                    <input type="date" value="${f.fechaFirma}" oninput="fUpdate('fechaFirma', this.value, true)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="date" value="${f.fechaFirma}" onchange="handleFechaFirmaChange(this.value)" oninput="handleFechaFirmaChange(this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                 </div>
 
@@ -467,16 +526,23 @@
                       </label>
                     </div>
                   </div>
-                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
+                  <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div class="sm:col-span-4">
                       <label class="block text-xs font-bold text-slate-700 mb-1">${f.tipoPersona==='juridica'?'Nombre Representante Legal':'Nombre Completo Contratista'}</label>
                       <input type="text" placeholder="Ej: JUAN PÉREZ" value="${f.contratista}" oninput="fUpdate('contratista', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
                     </div>
-                    <div>
-                      <label class="block text-xs font-bold text-slate-700 mb-1">Número de Cédula</label>
-                      <input type="text" placeholder="1.018.437.843" value="${f.identificacion}" oninput="fUpdate('identificacion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    <div class="sm:col-span-2">
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Género</label>
+                      <select onchange="fUpdate('genero', this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-sm bg-white">
+                        <option value="M" ${f.genero==='M'?'selected':''}>Masculino (identificado)</option>
+                        <option value="F" ${f.genero==='F'?'selected':''}>Femenino (identificada)</option>
+                      </select>
                     </div>
-                    <div>
+                    <div class="sm:col-span-3">
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Número de Cédula</label>
+                      <input type="text" placeholder="1.006.209.774" value="${f.identificacion}" oninput="handleCedulaInput(this, 'identificacion')" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    </div>
+                    <div class="sm:col-span-3">
                       <label class="block text-xs font-bold text-slate-700 mb-1">Ciudad de Expedición C.C.</label>
                       <input type="text" value="${f.ciudadExpedicion}" oninput="fUpdate('ciudadExpedicion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
                     </div>
@@ -509,7 +575,7 @@
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Cédula Supervisor (Opcional)</label>
-                    <input type="text" placeholder="Ej: 19458036" value="${f.ccSupervisor}" oninput="fUpdate('ccSupervisor', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="text" placeholder="19.458.036" value="${f.ccSupervisor}" oninput="handleCedulaInput(this, 'ccSupervisor')" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                 </div>
 
@@ -523,11 +589,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Plazo Inicial (días)</label>
-                    <input type="number" placeholder="Ej: 10 días" value="${f.plazoInicial}" oninput="fUpdate('plazoInicial', this.value); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="number" placeholder="Ej: 10" value="${f.plazoInicial}" oninput="fUpdate('plazoInicial', this.value); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Plazo Total (días)</label>
-                    <input type="text" id="disp-plazo-total" placeholder="Auto o manual" readonly class="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 text-sm font-bold text-slate-700">
+                    <input type="text" id="disp-plazo-total" placeholder="Auto" readonly class="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 text-sm font-bold text-slate-700">
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Inicio</label>
@@ -574,7 +640,7 @@
                 <div class="border border-slate-200 rounded-xl p-3.5 space-y-3">
                   <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
                     <input type="checkbox" ${f.tienePolizas?'checked':''} onchange="fUpdate('tienePolizas', this.checked, true)">
-                    Incluir cuadro de Garantías / Pólizas (si el contrato exigió póliza)
+                    Incluir cuadro de Garantías / Pólizas (si se deja desmarcado, se elimina del Word)
                   </label>
                   ${f.tienePolizas ? `
                     <div class="space-y-2.5 pt-1">
@@ -591,7 +657,7 @@
                           </select>
                           <input type="text" placeholder="Garantía No." value="${g.numero}" oninput="updateGar(${idx},'numero',this.value)" class="border rounded px-2 py-1 bg-white">
                           <input type="text" placeholder="Amparos" value="${g.amparos}" oninput="updateGar(${idx},'amparos',this.value)" class="border rounded px-2 py-1 bg-white">
-                          <input type="text" placeholder="Valor ($)" value="${g.valor}" oninput="updateGar(${idx},'valor',this.value)" class="border rounded px-2 py-1 bg-white">
+                          <input type="text" placeholder="$ Valor" value="${formatCurrencyInput(g.valor)}" oninput="handleGarMoneyInput(this, ${idx})" class="border rounded px-2 py-1 bg-white">
                           <input type="date" value="${g.inicio}" oninput="updateGar(${idx},'inicio',this.value)" class="border rounded px-2 py-1 bg-white">
                           <input type="date" value="${g.fin}" oninput="updateGar(${idx},'fin',this.value)" class="border rounded px-2 py-1 bg-white">
                           <div class="flex gap-1">
@@ -629,7 +695,7 @@
                       </div>
                       <div class="sm:col-span-3">
                         <label class="block text-[11px] text-slate-500 mb-1">Valor ($)</label>
-                        <input type="number" placeholder="0" value="${p.valor}" oninput="updatePago(${idx},'valor',Number(this.value)); calcAll()" class="w-full border border-slate-300 bg-white rounded-lg px-3 py-1.5 text-xs">
+                        <input type="text" placeholder="$ 0" value="${formatCurrencyInput(p.valor)}" oninput="handlePagoMoneyInput(this, ${idx})" class="w-full border border-slate-300 bg-white rounded-lg px-3 py-1.5 text-xs">
                       </div>
                       <div class="sm:col-span-1">
                         <button onclick="removePago(${idx})" class="w-full text-xs font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg py-1.5">
@@ -688,7 +754,7 @@
                   <span class="text-blue-600 text-base mt-0.5">✒️</span>
                   <div class="text-xs text-[#1e40af] space-y-1">
                     <div class="font-bold text-sm">Ordenadora del Gasto Vigente</div>
-                    <p>Según la fecha de firma (${esNuevaDecana ? 'a partir del 01/10/2026' : 'anterior al 01/10/2026'}), el acta se genera automáticamente a nombre de la Decana <strong>${decanaNombre}</strong> (C.C. ${decanaCC}).</p>
+                    <p id="decana-info-text">Según la fecha de firma (${esNuevaDecana ? 'a partir del 01/10/2026' : 'anterior al 01/10/2026'}), el acta se genera automáticamente a nombre de la Decana <strong>${decanaNombre}</strong> (C.C. ${decanaCC}).</p>
                   </div>
                 </div>
               </div>
@@ -707,11 +773,11 @@
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Valor Inicial (1)</label>
-                    <input type="number" value="${f.valorInicial}" oninput="fUpdate('valorInicial', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="text" placeholder="$ 0" value="${formatCurrencyInput(f.valorInicial)}" oninput="handleMoneyInput(this, 'valorInicial')" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Vr. Adiciones (2)</label>
-                    <input type="number" value="${f.valorAdicion}" oninput="fUpdate('valorAdicion', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="text" placeholder="$ 0" value="${formatCurrencyInput(f.valorAdicion)}" oninput="handleMoneyInput(this, 'valorAdicion')" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Vr. Pagado a la fecha (3)</label>
@@ -719,7 +785,7 @@
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Causado sin pagar (4)</label>
-                    <input type="number" value="${f.valorPendiente}" oninput="fUpdate('valorPendiente', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="text" placeholder="$ 0" value="${formatCurrencyInput(f.valorPendiente)}" oninput="handleMoneyInput(this, 'valorPendiente')" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                 </div>
 
@@ -769,7 +835,7 @@
     }
     function addArr(key) { state.form[key].push(''); render(); }
     function removeArr(key, idx) { state.form[key].splice(idx, 1); render(); }
-    function addGar() { state.form.garantias.push({ tipo: 'Inicial', numero: '', amparos: '', valor: '', inicio: '', fin: '', aprobacion: '' }); render(); }
+    function addGar() { state.form.garantias.push({ tipo: 'Inicial', numero: '', amparos: '', valor: 0, inicio: '', fin: '', aprobacion: '' }); render(); }
     function removeGar(idx) { state.form.garantias.splice(idx, 1); render(); }
     function updateGar(idx, k, v) { state.form.garantias[idx][k] = v; }
     function addPago() { state.form.pagos.push({ orpa: '', fecha: '', valor: 0 }); render(); }
@@ -794,7 +860,7 @@
       const vAnu = vTot - vEje;
 
       const fmtSpace = n => '$ ' + n.toLocaleString('es-CO');
-      if (document.getElementById('disp-pagado-input')) document.getElementById('disp-pagado-input').value = vPag;
+      if (document.getElementById('disp-pagado-input')) document.getElementById('disp-pagado-input').value = fmtSpace(vPag);
       if (document.getElementById('sum-total')) document.getElementById('sum-total').innerText = fmtSpace(vTot);
       if (document.getElementById('sum-ejecutado')) document.getElementById('sum-ejecutado').innerText = fmtSpace(vEje);
       if (document.getElementById('sum-anular')) document.getElementById('sum-anular').innerText = fmtSpace(vAnu);
@@ -935,6 +1001,8 @@
         const artRol = esFem ? 'la' : 'el';
         const rolLower = f.rolSupervision.toLowerCase();
 
+        const identWord = f.genero === 'F' ? 'identificada' : 'identificado';
+
         const pIni = Number(f.plazoInicial) || 0;
         const prorrogasAct = f.prorrogas.filter(x => Number(x) > 0);
         const suspensionesAct = f.suspensiones.filter(x => Number(x) > 0);
@@ -949,18 +1017,19 @@
         const vAnu = vTot - vEje;
         const fmt = n => '$' + n.toLocaleString('es-CO');
 
-        const tipoOrdenNombre = NOMBRE_ORDEN_MAP[f.sigla] || f.sigla;
-        const refOrdenUpper = `${tipoOrdenNombre} ${f.sigla} No. ${f.numero || '___'} de ${f.anio}`;
-        const refOrdenLower = `${tipoOrdenNombre.toLowerCase()} ${f.sigla} No. ${f.numero || '___'} de ${f.anio}`;
+        const siglaObj = SIGLAS_CATALOG.find(s => s.code === f.sigla) || SIGLAS_CATALOG[0];
+        const refOrdenUpper = `${siglaObj.docName} ${f.sigla} No. ${f.numero || '___'} de ${f.anio}`;
+        const refOrdenLower = `${siglaObj.docName.toLowerCase()} ${f.sigla} No. ${f.numero || '___'} de ${f.anio}`;
         const contratistaHeader = f.tipoPersona === 'juridica' ? (f.empresaNombre || f.contratista) : f.contratista;
 
         const clausulaContratista = f.tipoPersona === 'juridica'
-          ? `${f.contratista || '___'}, identificado(a) con cédula de ciudadanía ${f.identificacion || '___'} expedida en ${f.ciudadExpedicion || 'Bogotá D.C.'}, en su calidad de representante legal de la empresa ${f.empresaNombre || '___'}, identificada con NIT ${f.empresaNit || '___'}, según certificado de existencia y representación legal expedido por la Cámara de Comercio`
-          : `${f.contratista || '___'}, identificado(a) con cédula de ciudadanía ${f.identificacion || '___'} expedida en ${f.ciudadExpedicion || 'Bogotá D.C.'}`;
+          ? `${f.contratista || '___'}, ${identWord} con cédula de ciudadanía ${f.identificacion || '___'} expedida en ${f.ciudadExpedicion || 'Bogotá D.C.'}, en su calidad de representante legal de la empresa ${f.empresaNombre || '___'}, identificada con NIT ${f.empresaNit || '___'}, según certificado de existencia y representación legal expedido por la Cámara de Comercio`
+          : `${f.contratista || '___'}, ${identWord} con cédula de ciudadanía ${f.identificacion || '___'} expedida en ${f.ciudadExpedicion || 'Bogotá D.C.'}`;
 
         const textReplacements = [
-          ['CONTRATO/ ORDEN CONTRACTUAL DE  Tipo de orden # de orden de AÑO', `CONTRATO / ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
-          ['CONTRATO/ ORDEN CONTRACTUAL DE Tipo de orden # de orden de AÑO', `CONTRATO / ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
+          ['ORDEN CONTRACTUAL DE  Tipo de orden # de orden de AÑO', `ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
+          ['ORDEN CONTRACTUAL DE Tipo de orden # de orden de AÑO', `ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
+          ['CONTRATO/ ORDEN CONTRACTUAL DE  Tipo de orden # de orden de AÑO', `ORDEN CONTRACTUAL DE ${refOrdenUpper}`],
           ['Tipo de orden # de orden de AÑO', refOrdenLower],
           ['Número de orden', f.numero || '___'],
           ['AÑO', f.anio || '2026'],
@@ -973,8 +1042,10 @@
           ['$ Valor Total', fmt(vTot)],
           ['$ Valor por anular', fmt(vAnu)],
           ['$ Valor que se le debe a contratista', fmt(vPen)],
+          ['(indicar brevemente el motivo del saldo sin ejecutar.)', `${f.justificacionSaldo || 'el valor no ejecutado durante el plazo contractual'}.`],
           ['(indicar brevemente el motivo del saldo sin ejecutar)', f.justificacionSaldo || 'el valor no ejecutado durante el plazo contractual'],
           ['indicar brevemente el motivo del saldo sin ejecutar', f.justificacionSaldo || 'el valor no ejecutado durante el plazo contractual'],
+          ['(indicar brevemente si aplica o si necesita alguna justificación, en caso de no aplicar se puede borrar todo el párrafo)', f.justificacionSaldo || 'se ejecutó la totalidad del objeto contractual'],
           ['El interventor/supervisor', `${artRol.charAt(0).toUpperCase() + artRol.slice(1)} ${rolLower}`],
           ['el interventor/supervisor', `${artRol} ${rolLower}`],
           ['y el supervisor', `y ${artRol} ${rolLower}`],
@@ -996,6 +1067,23 @@
           const xmlDoc = parser.parseFromString(xmlStr, 'application/xml');
 
           unwrapAllSdt(xmlDoc);
+
+          // SI NO SE MARCA GARANTÍAS, ELIMINAR PÁRRAFO INTRODUCTORIO Y TABLA DE GARANTÍAS
+          if (fileName === 'word/document.xml' && !f.tienePolizas) {
+            const allParagraphs = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'p'));
+            allParagraphs.forEach(p => {
+              if (p.textContent.toUpperCase().includes('ESTUVO AMPARADA(O) POR LA(S) GARANTÍA(S)')) {
+                if (p.parentNode) p.parentNode.removeChild(p);
+              }
+            });
+            const allTables = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'tbl'));
+            allTables.forEach(tbl => {
+              if (tbl.textContent.toUpperCase().includes('VIGENCIA DE LOS AMPAROS')) {
+                if (tbl.parentNode) tbl.parentNode.removeChild(tbl);
+              }
+            });
+          }
+
           replaceParagraphTexts(xmlDoc, textReplacements);
 
           if (fileName === 'word/document.xml') {
@@ -1030,24 +1118,22 @@
                 });
               }
 
-              else if (tblText.includes('VIGENCIA DE LOS AMPAROS')) {
-                if (f.tienePolizas) {
-                  let garIdx = 0;
-                  rows.forEach((tr, rIdx) => {
-                    if (rIdx < 2) return;
-                    const cells = Array.from(tr.getElementsByTagNameNS(ns, 'tc'));
-                    if (cells.length >= 7 && garIdx < f.garantias.length) {
-                      const g = f.garantias[garIdx++];
-                      setCellText(cells[0], g.tipo || 'Inicial');
-                      setCellText(cells[1], g.numero || '');
-                      setCellText(cells[2], g.amparos || '');
-                      setCellText(cells[3], g.valor ? '$' + Number(g.valor).toLocaleString('es-CO') : '');
-                      setCellText(cells[4], formatDateShort(g.inicio));
-                      setCellText(cells[5], formatDateShort(g.fin));
-                      setCellText(cells[6], formatDateShort(g.aprobacion));
-                    }
-                  });
-                }
+              else if (tblText.includes('VIGENCIA DE LOS AMPAROS') && f.tienePolizas) {
+                let garIdx = 0;
+                rows.forEach((tr, rIdx) => {
+                  if (rIdx < 2) return;
+                  const cells = Array.from(tr.getElementsByTagNameNS(ns, 'tc'));
+                  if (cells.length >= 7 && garIdx < f.garantias.length) {
+                    const g = f.garantias[garIdx++];
+                    setCellText(cells[0], g.tipo || 'Inicial');
+                    setCellText(cells[1], g.numero || '');
+                    setCellText(cells[2], g.amparos || '');
+                    setCellText(cells[3], g.valor ? '$' + Number(g.valor).toLocaleString('es-CO') : '');
+                    setCellText(cells[4], formatDateShort(g.inicio));
+                    setCellText(cells[5], formatDateShort(g.fin));
+                    setCellText(cells[6], formatDateShort(g.aprobacion));
+                  }
+                });
               }
 
               else if (tblText.includes('BALANCE FINANCIERO')) {
