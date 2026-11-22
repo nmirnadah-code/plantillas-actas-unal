@@ -71,9 +71,6 @@
   <!-- CONTENIDO PRINCIPAL -->
   <main class="flex-1 w-full px-6 py-6" id="app-container"></main>
 
-  <!-- CONTENEDOR OCULTO PARA GENERAR PDF LIMPIO -->
-  <div id="hidden-pdf-render" style="position:fixed; left:-99999px; top:0; width:816px; background:#fff;"></div>
-
   <!-- MODAL FLOTANTE DE VISTA PREVIA -->
   <div id="preview-modal" class="hidden fixed inset-0 bg-slate-900/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden border-2 unal-lime-border">
@@ -324,12 +321,10 @@
         .replace(/>/g, '&gt;');
     }
 
-    // NORMALIZACIÓN DE MAYÚSCULAS A TIPO ORACIÓN (RESPETANDO PUNTO SEGUIDO)
     function normalizeSentenceCase(text, capitalizeFirst = false) {
       const clean = String(text || '').trim();
       if (!clean) return '';
       let lower = clean.toLowerCase();
-      // Mayúscula después de punto seguido
       lower = lower.replace(/(\.\s+)([a-záéíóúñü])/g, (_, sep, ch) => sep + ch.toUpperCase());
       if (capitalizeFirst) {
         lower = lower.charAt(0).toUpperCase() + lower.slice(1);
@@ -343,7 +338,6 @@
       return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     }
 
-    // FORMATO AUTOMÁTICO DE NIT COLOMBIANO (9 DÍGITOS CON PUNTOS + GUION + DV)
     function formatNitColombiano(raw) {
       const clean = String(raw || '').replace(/[^\d-]/g, '');
       if (!clean) return '';
@@ -793,7 +787,7 @@
                   </div>
                 </div>
 
-                <!-- PRÓRROGAS Y SUSPENSIONES (FILAS SEPARADAS EN WORD) -->
+                <!-- PRÓRROGAS Y SUSPENSIONES -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div class="border border-slate-200 rounded-xl p-3.5 space-y-2">
                     <div class="flex items-center justify-between">
@@ -1160,16 +1154,6 @@
     function setCellTwoLines(tc, line1, line2) {
       if (!tc) return;
       const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-      const existingPs = Array.from(tc.getElementsByTagNameNS(ns, 'p'));
-      const baseP = existingPs[0] ? existingPs[0].cloneNode(true) : null;
-      while (tc.firstChild) tc.removeChild(tc.firstChild);
-
-      [line1, line2].forEach(line => {
-        const p = baseP ? baseP.cloneNode(true) : tc.ownerDocument.createElementNS(ns, 'w:p');
-        tc.appendChild(p);
-        setCellText(tc, line); // limpia el primer p; ajustamos directo:
-      });
-      // Reconstruir limpio con 2 párrafos exactos
       while (tc.firstChild) tc.removeChild(tc.firstChild);
       [line1, line2].forEach(line => {
         const p = tc.ownerDocument.createElementNS(ns, 'w:p');
@@ -1305,7 +1289,6 @@
       const supervisorUpper = (f.supervisor || '___').toUpperCase();
       const contratistaHeader = f.tipoPersona === 'juridica' ? empresaUpper : contratistaUpper;
 
-      // Normalización tipo oración en justificación (inicia minúscula porque va tras "de que ")
       const justifNormalizada = normalizeSentenceCase(f.justificacionSaldo, false) || 'el valor no ejecutado durante el plazo contractual';
 
       const clausulaContratista = f.tipoPersona === 'juridica'
@@ -1366,7 +1349,6 @@
           });
         }
 
-        // INSERTAR CONSIDERANDOS ADICIONALES JUSTO DESPUÉS DEL NUMERAL 4 (EJECUCIÓN FINANCIERA)
         if (fileName === 'word/document.xml') {
           const extras = f.considerandosExtra
             .map(x => normalizeSentenceCase(x, true))
@@ -1374,7 +1356,6 @@
 
           if (extras.length > 0) {
             const allPs = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'p'));
-            // Buscar el considerando 4 ("En relación con la ejecución financiera...")
             const p4 = allPs.find(p => p.textContent.toUpperCase().includes('EN RELACIÓN CON LA EJECUCIÓN FINANCIERA'))
                     || allPs.find(p => p.textContent.toUpperCase().includes('EN CUMPLIMIENTO DE LAS FUNCIONES ASIGNADAS POR EL MANUAL'));
 
@@ -1459,7 +1440,6 @@
                 }
               });
 
-              // Expandir filas independientes si hay 2 o más Prórrogas
               if (rowProrroga) {
                 if (prorrogasAct.length <= 1) {
                   const cells = Array.from(rowProrroga.getElementsByTagNameNS(ns, 'tc'));
@@ -1476,7 +1456,6 @@
                 }
               }
 
-              // Expandir filas independientes si hay 2 o más Suspensiones
               if (rowSuspension) {
                 if (suspensionesAct.length <= 1) {
                   const cells = Array.from(rowSuspension.getElementsByTagNameNS(ns, 'tc'));
@@ -1551,7 +1530,6 @@
       });
     }
 
-    // VISTA PREVIA SIN BLOQUEO ESTRICTO (PERMITE VER EL BORRADOR EN CUALQUIER MOMENTO)
     async function openPreviewModal() {
       const modal = document.getElementById('preview-modal');
       const wrapper = document.getElementById('docx-preview-wrapper');
@@ -1606,23 +1584,49 @@
       btn.disabled = true;
       btn.innerHTML = '<span>⏳</span> Generando PDF...';
 
+      const overlay = document.createElement('div');
+      overlay.id = 'pdf-capture-overlay';
+      overlay.style.cssText = 'position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.85); overflow:auto; display:flex; flex-direction:column; align-items:center; padding:24px;';
+
+      const statusBanner = document.createElement('div');
+      statusBanner.style.cssText = 'position:sticky; top:0; z-index:10000; background:#1c2838; color:#fff; padding:12px 24px; border-radius:12px; font-weight:bold; font-size:13px; margin-bottom:16px; border:2px solid #84a938;';
+      statusBanner.innerText = '⏳ Generando archivo PDF oficial, por favor espera unos segundos...';
+      overlay.appendChild(statusBanner);
+
+      const renderTarget = document.createElement('div');
+      renderTarget.style.cssText = 'background:#ffffff; width:816px; box-shadow:0 10px 30px rgba(0,0,0,0.4);';
+      overlay.appendChild(renderTarget);
+      document.body.appendChild(overlay);
+
       try {
         const blob = await buildModifiedDocxBlob();
-        const hiddenContainer = document.getElementById('hidden-pdf-render');
-        hiddenContainer.innerHTML = '';
-        await docx.renderAsync(blob, hiddenContainer, null, { inWrapper: false, ignoreWidth: false });
+        await docx.renderAsync(blob, renderTarget, null, {
+          inWrapper: false,
+          ignoreWidth: false,
+          breakPages: true
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 450));
 
         const fileName = `Acta_Liquidacion_${f.sigla}_${f.numero}_${f.anio}.pdf`;
         await html2pdf().set({
-          margin: [8, 8, 8, 8],
+          margin: [0, 0, 0, 0],
           filename: fileName,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
-        }).from(hiddenContainer).save();
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: 0
+          },
+          jsPDF: { unit: 'pt', format: 'letter', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'legacy'] }
+        }).from(renderTarget).save();
       } catch (err) {
         alert('Error al generar el PDF: ' + err.message);
       } finally {
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
         btn.disabled = false;
         btn.innerHTML = '<span>📕</span> Descargar PDF (.pdf)';
       }
