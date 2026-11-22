@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Asistente de Actas de Liquidación - Facultad de Ingeniería UNAL</title>
+  <title>Asistente de Selección de Actas de Liquidación - UNAL</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
   <style>
@@ -11,13 +11,14 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
-      background-color: #f1f5f9;
-      color: #0f172a;
+      font-family: 'Calibri', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: #f3f5f8;
+      color: #1e293b;
     }
-    .unal-green { background-color: #2b6d21; }
-    .unal-green-hover:hover { background-color: #215419; }
-    .fade-in { animation: fadeIn 0.25s ease-in-out; }
+    .unal-navy { background-color: #1c2838; }
+    .unal-lime-border { border-color: #84a938; }
+    .unal-lime-bg { background-color: #84a938; }
+    .fade-in { animation: fadeIn 0.25s ease-out; }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
@@ -26,98 +27,129 @@
 </head>
 <body class="min-h-screen w-full flex flex-col">
 
-  <!-- BARRA SUPERIOR UNAL -->
-  <header class="unal-green text-white shadow-md w-full">
-    <div class="w-full px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div class="bg-white/15 px-3 py-1.5 rounded-lg font-bold tracking-wider text-sm border border-white/25">
-          UNAL · INGENIERÍA
+  <!-- HEADER SUPERIOR INSTITUCIONAL -->
+  <header class="unal-navy text-white px-6 py-3.5 shadow-md w-full border-b-4 border-[#84a938]">
+    <div class="w-full flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-[#84a938]/20 border border-[#84a938]/50 flex items-center justify-center text-[#a3cc4b]">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
         </div>
         <div>
-          <h1 class="text-lg font-bold leading-tight">Asistente de Selección y Generación de Actas de Liquidación</h1>
-          <p class="text-xs text-green-100">Facultad de Ingeniería — Sede Bogotá</p>
+          <div class="text-[11px] font-bold tracking-widest text-[#a3cc4b] uppercase">
+            UNIVERSIDAD NACIONAL DE COLOMBIA • FACULTAD DE INGENIERÍA
+          </div>
+          <h1 class="text-lg font-bold tracking-tight text-white leading-snug">
+            Asistente de Selección de Actas de Liquidación
+          </h1>
         </div>
       </div>
-      <button onclick="resetWizard()" class="text-xs bg-white/15 hover:bg-white/25 px-3 py-2 rounded-lg font-semibold transition">
-        ↺ Reiniciar Asistente
-      </button>
+
+      <div class="flex items-center gap-2.5">
+        <button onclick="toggleModal(true)" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#293829] hover:bg-[#344734] text-[#b4dc5e] border border-[#84a938]/40 transition flex items-center gap-1.5">
+          <span>🎓</span> ¿Cómo funciona?
+        </button>
+        <button onclick="resetWizard()" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700/70 hover:bg-slate-600 text-slate-200 border border-slate-600 transition flex items-center gap-1.5">
+          <span>↺</span> Reiniciar diagnóstico
+        </button>
+      </div>
     </div>
   </header>
 
+  <!-- CONTENIDO PRINCIPAL -->
   <main class="flex-1 w-full px-6 py-6" id="app-container"></main>
+
+  <!-- MODAL AYUDA -->
+  <div id="help-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-bold text-slate-900 text-base">🎓 Guía rápida de generación</h3>
+        <button onclick="toggleModal(false)" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+      </div>
+      <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
+        <p><strong>1. Diagnóstico guiado:</strong> Responde las preguntas sobre ejecución y saldos para identificar automáticamente la minuta oficial aplicable.</p>
+        <p><strong>2. Diligenciamiento directo:</strong> Completa los datos del contrato, fechas, pólizas (si aplica) y pagos ORPA. El sistema calcula plazos totales y balances automáticamente.</p>
+        <p><strong>3. Exportación oficial:</strong> Al pulsar <strong>Descargar Word (.docx)</strong>, se genera el documento institucional oficial con encabezado, escudo de la UNAL y tipografía Calibri 11pt.</p>
+      </div>
+      <div class="text-right pt-2">
+        <button onclick="toggleModal(false)" class="px-4 py-2 rounded-lg unal-navy text-white text-xs font-bold">Entendido</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const GITHUB_BASE = '.';
 
     const TEMPLATES = {
       mutuo_sin_anular_sin_favor: {
-        title: 'Acta de Liquidación de Mutuo Acuerdo (Sin saldo para anular y sin saldo a favor)',
+        code: 'MUTUO ACUERDO • CASO 1 • Ejecutado • Terminación Ordinaria • Sin Saldos',
+        title: 'Acta de Liquidación Mutuo Acuerdo: Sin Saldo para Anular y sin Saldo a Favor del Contratista',
+        alcance: 'Orden finalizada donde se ejecutó y pagó el 100% del valor contractual (casilla 4 = $0 y saldo a anular = $0). Las partes quedan mutuamente a paz y salvo.',
         url: `${GITHUB_BASE}/mutuo_sin_anular_sin_favor.docx`,
-        badge: 'Mutuo Acuerdo · Ejecución 100%',
         hasSaldoAnular: false,
         hasSaldoFavor: false,
-        isAnticipada: false,
-        isNoEjecutada: false
+        isAnticipada: false
       },
       mutuo_sin_anular_con_favor: {
-        title: 'Acta de Liquidación de Mutuo Acuerdo (Sin saldo para anular y con saldo a favor)',
+        code: 'MUTUO ACUERDO • CASO 2 • Ejecutado • Terminación Ordinaria • Saldo a Favor',
+        title: 'Acta de Liquidación Mutuo Acuerdo: Sin Saldo para Anular y con Saldo a Favor del Contratista',
+        alcance: 'Orden finalizada donde se ejecutó el 100% del presupuesto, pero existe un valor causado pendiente por desembolsar al contratista (casilla 4 > $0).',
         url: `${GITHUB_BASE}/mutuo_sin_anular_con_favor.docx`,
-        badge: 'Mutuo Acuerdo · Saldo a Favor',
         hasSaldoAnular: false,
         hasSaldoFavor: true,
-        isAnticipada: false,
-        isNoEjecutada: false
+        isAnticipada: false
       },
       mutuo_con_anular_sin_favor: {
-        title: 'Acta de Liquidación de Mutuo Acuerdo (Con saldo para anular y sin saldo a favor)',
+        code: 'MUTUO ACUERDO • CASO 3 • Ejecutado • Terminación Ordinaria • Saldo a Anular (S)',
+        title: 'Acta de Liquidación Mutuo Acuerdo: Con Saldo para Anular y sin Saldo a Favor del Contratista',
+        alcance: 'Orden finalizada donde ya se pagó todo lo ejecutado (casilla 4 = $0), pero existe un remanente sin ejecutar que debe anularse presupuestalmente.',
         url: `${GITHUB_BASE}/mutuo_con_anular_sin_favor.docx`,
-        badge: 'Mutuo Acuerdo · Saldo a Anular',
         hasSaldoAnular: true,
         hasSaldoFavor: false,
-        isAnticipada: false,
-        isNoEjecutada: false
+        isAnticipada: false
       },
       mutuo_con_anular_con_favor: {
-        title: 'Acta de Liquidación de Mutuo Acuerdo (Con saldo para anular y con saldo a favor)',
+        code: 'MUTUO ACUERDO • CASO 4 • Ejecutado • Terminación Ordinaria • Saldo a Anular + Favor',
+        title: 'Acta de Liquidación Mutuo Acuerdo: Con Saldo para Anular y con Saldo a Favor del Contratista',
+        alcance: 'Orden finalizada con un saldo causado pendiente por pagar al contratista (casilla 4 > $0) y simultáneamente un remanente sin ejecutar que requiere anulación.',
         url: `${GITHUB_BASE}/mutuo_con_anular_con_favor.docx`,
-        badge: 'Mutuo Acuerdo · Saldo a Anular + Favor',
         hasSaldoAnular: true,
         hasSaldoFavor: true,
-        isAnticipada: false,
-        isNoEjecutada: false
+        isAnticipada: false
       },
       anticipada_sin_saldo: {
-        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo (Sin saldo a anular)',
+        code: 'TERMINACIÓN ANTICIPADA • CASO 5 • Sin Saldo a Anular',
+        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Sin Saldo para Anular',
+        alcance: 'Terminación anticipada acordada entre las partes donde el valor ejecutado cubre la totalidad del presupuesto asignado.',
         url: `${GITHUB_BASE}/anticipada_sin_saldo.docx`,
-        badge: 'Terminación Anticipada',
         hasSaldoAnular: false,
         hasSaldoFavor: false,
-        isAnticipada: true,
-        isNoEjecutada: false
+        isAnticipada: true
       },
       anticipada_con_saldo: {
-        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo (Con saldo a anular)',
+        code: 'TERMINACIÓN ANTICIPADA • CASO 6 • Con Saldo a Anular',
+        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Con Saldo para Anular',
+        alcance: 'Terminación anticipada acordada entre las partes que genera un remanente presupuestal sin ejecutar que debe ser anulado.',
         url: `${GITHUB_BASE}/anticipada_con_saldo.docx`,
-        badge: 'Terminación Anticipada · Con Saldo',
         hasSaldoAnular: true,
         hasSaldoFavor: false,
-        isAnticipada: true,
-        isNoEjecutada: false
+        isAnticipada: true
       },
       no_ejecutada: {
-        title: 'Acta de Liquidación de Orden No Ejecutada (Anulación Total)',
+        code: 'ORDEN NO EJECUTADA • CASO 7 • Anulación Total (100%)',
+        title: 'Acta de Liquidación de Orden Contractual No Ejecutada',
+        alcance: 'Orden contractual que nunca inició ejecución física ni financiera; se ordena la anulación del 100% del compromiso presupuestal.',
         url: `${GITHUB_BASE}/no_ejecutada.docx`,
-        badge: 'No Ejecutada · Anulación 100%',
         hasSaldoAnular: true,
         hasSaldoFavor: false,
-        isAnticipada: false,
-        isNoEjecutada: true
+        isAnticipada: false
       }
     };
 
     const NOMBRE_ORDEN_MAP = {
+      OSU: 'SUMINISTRO',
       OPS: 'PRESTACIÓN DE SERVICIOS',
-      OSU: 'ORDEN CONTRACTUAL SUPERIOR',
       OCO: 'COMPRA',
       OCA: 'ARRENDAMIENTO',
       ATI: 'ADICIÓN / OTROSÍ'
@@ -126,9 +158,11 @@
     const initialState = () => ({
       currentNodeId: 'ejecucion',
       history: [],
+      breadcrumbs: [],
       selectedTemplateKey: null,
+      showPreview: false,
       form: {
-        sigla: 'OPS',
+        sigla: 'OSU',
         numero: '',
         anio: '2026',
         fechaFirma: '2026-11-21',
@@ -155,7 +189,7 @@
         garantias: [
           { tipo: 'Inicial', numero: '', amparos: '', valor: '', inicio: '', fin: '', aprobacion: '' }
         ],
-        pagos: [],
+        pagos: [{ orpa: '', fecha: '', valor: 0 }],
         justificacionSaldo: '',
         fechaAnticipada: '',
         motivoAnticipada: ''
@@ -166,55 +200,96 @@
 
     const DECISION_NODES = {
       ejecucion: {
-        step: 'Paso 1 de 3',
+        stepNum: 1,
+        totalSteps: 4,
         question: '¿El contrato u orden contractual tuvo ejecución física o financiera?',
         help: 'Selecciona "No" únicamente si la orden nunca inició actividades y se requiere anular el 100% del registro presupuestal.',
         options: [
-          { label: 'Sí, hubo ejecución total o parcial', desc: 'Se prestaron servicios, entregaron bienes o ejecutaron actividades.', next: 'terminacion' },
-          { label: 'No, nunca se ejecutó (Anulación total)', desc: 'No hubo ejecución ni pagos; se libera el 100% del presupuesto.', templateKey: 'no_ejecutada' }
+          { label: 'Sí, hubo ejecución total o parcial', chip: 'Con Ejecución', desc: 'Se prestaron servicios, entregaron bienes o ejecutaron actividades.', next: 'terminacion' },
+          { label: 'No, nunca se ejecutó (Anulación total)', chip: 'Sin Ejecución', desc: 'No hubo ejecución ni pagos; se libera el 100% del presupuesto.', templateKey: 'no_ejecutada' }
         ]
       },
       terminacion: {
-        step: 'Paso 2 de 3',
+        stepNum: 2,
+        totalSteps: 4,
         question: '¿Cómo finalizó la ejecución de la orden contractual?',
         help: 'Identifica si cumplió su plazo ordinario o si las partes acordaron terminarla antes de la fecha pactada.',
         options: [
-          { label: 'Finalización ordinaria (Mutuo Acuerdo)', desc: 'Cumplió el plazo pactado o el objeto contractual.', next: 'saldos_mutuo' },
-          { label: 'Terminación anticipada de mutuo acuerdo', desc: 'Finalizó antes del vencimiento del plazo por acuerdo entre las partes.', next: 'saldos_anticipada' }
+          { label: 'Finalización ordinaria (Mutuo Acuerdo)', chip: 'Ordinaria (Mutuo Acuerdo)', desc: 'Cumplió el plazo pactado o el objeto contractual.', next: 'saldos_estado' },
+          { label: 'Terminación anticipada de mutuo acuerdo', chip: 'Terminación Anticipada', desc: 'Finalizó antes del vencimiento del plazo por acuerdo entre las partes.', next: 'saldos_anticipada' }
         ]
       },
-      saldos_mutuo: {
-        step: 'Paso 3 de 3',
-        question: '¿Cuál es el estado de saldos al cierre de la orden?',
+      saldos_estado: {
+        stepNum: 3,
+        totalSteps: 4,
+        question: '¿Existen saldos pendientes al cierre de la orden contractual?',
+        help: 'Verifica si quedó dinero sin ejecutar para anular o dinero causado pendiente de pago al contratista.',
+        options: [
+          { label: 'Sí, existen saldos (para anular y/o a favor)', chip: 'Con Saldo', desc: 'Hay remanente presupuestal para anular o un pago pendiente al contratista.', next: 'detalle_saldos' },
+          { label: 'No, ejecución y pagos al 100%', chip: 'Sin Saldos', desc: 'Todo el presupuesto fue ejecutado y pagado en su totalidad.', templateKey: 'mutuo_sin_anular_sin_favor' }
+        ]
+      },
+      detalle_saldos: {
+        stepNum: 4,
+        totalSteps: 4,
+        question: '¿Qué tipo de saldo se presenta en la liquidación?',
         help: 'Selecciona la combinación exacta entre Saldo sin ejecutar (para anular) y Saldo pendiente por pagar (a favor del contratista).',
         options: [
-          { label: 'Sin saldo para anular y sin saldo a favor del contratista', desc: 'Ejecución financiera del 100% ya pagada en su totalidad.', templateKey: 'mutuo_sin_anular_sin_favor' },
-          { label: 'Sin saldo para anular y con saldo a favor del contratista', desc: 'Se ejecutó el 100%, pero queda un pago pendiente por desembolsar.', templateKey: 'mutuo_sin_anular_con_favor' },
-          { label: 'Con saldo para anular y sin saldo a favor del contratista', desc: 'Quedó presupuesto sin ejecutar que debe anularse; no se debe dinero al contratista.', templateKey: 'mutuo_con_anular_sin_favor' },
-          { label: 'Con saldo para anular y con saldo a favor del contratista', desc: 'Hay una suma pendiente por pagar al contratista y otra suma sin ejecutar para anular.', templateKey: 'mutuo_con_anular_con_favor' }
+          { label: 'Solo saldo sin ejecutar para anular', chip: 'Solo Saldo a Anular', desc: 'Ya se pagó todo lo ejecutado; solo se anula el saldo no ejecutado.', templateKey: 'mutuo_con_anular_sin_favor' },
+          { label: 'Solo saldo a favor del contratista', chip: 'Solo Saldo a Favor', desc: 'Se ejecutó el 100%, pero queda un pago pendiente por desembolsar.', templateKey: 'mutuo_sin_anular_con_favor' },
+          { label: 'Saldo para anular y saldo a favor del contratista', chip: 'Saldo a Anular + Favor', desc: 'Hay una suma pendiente por pagar al contratista y otra suma sin ejecutar para anular.', templateKey: 'mutuo_con_anular_con_favor' }
         ]
       },
       saldos_anticipada: {
-        step: 'Paso 3 de 3',
+        stepNum: 3,
+        totalSteps: 3,
         question: 'En la terminación anticipada, ¿queda saldo sin ejecutar para anular?',
         help: 'Indica si existe valor presupuestal no ejecutado que deba ser liberado/anulado.',
         options: [
-          { label: 'Con saldo para anular', desc: 'Queda un valor sin ejecutar producto de la terminación anticipada.', templateKey: 'anticipada_con_saldo' },
-          { label: 'Sin saldo para anular', desc: 'El valor ejecutado cubre la totalidad del presupuesto.', templateKey: 'anticipada_sin_saldo' }
+          { label: 'Con saldo para anular', chip: 'Con Saldo a Anular', desc: 'Queda un valor sin ejecutar producto de la terminación anticipada.', templateKey: 'anticipada_con_saldo' },
+          { label: 'Sin saldo para anular', chip: 'Sin Saldo a Anular', desc: 'El valor ejecutado cubre la totalidad del presupuesto.', templateKey: 'anticipada_sin_saldo' }
         ]
       }
     };
 
-    function resetWizard() { state = initialState(); render(); }
-
-    function goBack() {
-      if (state.selectedTemplateKey) { state.selectedTemplateKey = null; render(); return; }
-      if (state.history.length > 0) { state.currentNodeId = state.history.pop(); render(); }
+    function toggleModal(show) {
+      document.getElementById('help-modal').classList.toggle('hidden', !show);
     }
 
-    function selectOption(nextNodeId, templateKey) {
-      if (templateKey) state.selectedTemplateKey = templateKey;
-      else { state.history.push(state.currentNodeId); state.currentNodeId = nextNodeId; }
+    function resetWizard() { state = initialState(); render(); }
+
+    function jumpToBreadcrumb(index) {
+      if (index < 0) { resetWizard(); return; }
+      const target = state.breadcrumbs[index];
+      state.breadcrumbs = state.breadcrumbs.slice(0, index);
+      state.history = state.history.slice(0, index);
+      state.currentNodeId = target.nodeId;
+      state.selectedTemplateKey = null;
+      render();
+    }
+
+    function goBack() {
+      if (state.selectedTemplateKey) {
+        state.selectedTemplateKey = null;
+        state.breadcrumbs.pop();
+        render();
+        return;
+      }
+      if (state.history.length > 0) {
+        state.currentNodeId = state.history.pop();
+        state.breadcrumbs.pop();
+        render();
+      }
+    }
+
+    function selectOption(nextNodeId, templateKey, chipLabel) {
+      state.breadcrumbs.push({ nodeId: state.currentNodeId, label: chipLabel });
+      if (templateKey) {
+        state.selectedTemplateKey = templateKey;
+      } else {
+        state.history.push(state.currentNodeId);
+        state.currentNodeId = nextNodeId;
+      }
       render();
     }
 
@@ -224,24 +299,59 @@
       else renderFormView(container);
     }
 
-    function renderQuestionNode(container) {
-      const node = DECISION_NODES[state.currentNodeId];
-      container.innerHTML = `
-        <div class="w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 fade-in">
-          <div class="flex items-center justify-between mb-4">
-            <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-green-100 text-green-800">${node.step}</span>
-            ${state.history.length > 0 ? `<button onclick="goBack()" class="text-sm text-slate-500 hover:text-slate-800 font-semibold">← Paso anterior</button>` : ''}
+    function renderBreadcrumbBar(percent, statusLabel) {
+      return `
+        <div class="bg-white rounded-2xl shadow-xs border border-slate-200 p-4 mb-5">
+          <div class="flex items-center justify-between text-xs font-bold mb-2">
+            <span class="text-[#5a7622] flex items-center gap-1.5">
+              <span class="w-4 h-4 rounded-full bg-[#84a938] text-white inline-flex items-center justify-center text-[10px]">✓</span>
+              ${statusLabel}
+            </span>
+            <span class="text-slate-500">${percent}% completado</span>
           </div>
-          <h2 class="text-2xl font-bold text-slate-900 mb-2">${node.question}</h2>
-          <p class="text-sm text-slate-600 mb-6">${node.help}</p>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            ${node.options.map(opt => `
-              <button onclick="selectOption('${opt.next || ''}', '${opt.templateKey || ''}')"
-                class="w-full text-left p-4 rounded-xl border-2 border-slate-200 hover:border-green-700 hover:bg-green-50/50 transition group">
-                <div class="font-bold text-slate-900 group-hover:text-green-800 text-base">${opt.label}</div>
-                <div class="text-xs text-slate-500 mt-1">${opt.desc}</div>
+          <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+            <div class="h-full unal-lime-bg transition-all duration-300" style="width: ${percent}%"></div>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5 text-xs">
+            <button onclick="resetWizard()" class="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold flex items-center gap-1">
+              🏠 Inicio
+            </button>
+            ${state.breadcrumbs.map((b, idx) => `
+              <span class="text-slate-400">›</span>
+              <button onclick="jumpToBreadcrumb(${idx})" class="px-2.5 py-1 rounded-md bg-[#f1f6e4] hover:bg-[#e4efc9] text-[#4d661b] border border-[#84a938]/40 font-semibold flex items-center gap-1">
+                ${b.label} <span class="text-[10px] opacity-70">✎</span>
               </button>
             `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderQuestionNode(container) {
+      const node = DECISION_NODES[state.currentNodeId];
+      const pct = Math.round(((node.stepNum - 1) / node.totalSteps) * 100);
+
+      container.innerHTML = `
+        <div class="w-full fade-in">
+          ${renderBreadcrumbBar(pct, `DIAGNÓSTICO EN CURSO (PASO ${node.stepNum} DE ${node.totalSteps})`)}
+          <div class="bg-white rounded-2xl shadow-sm border-2 unal-lime-border p-6 md:p-8">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-[#f1f6e4] text-[#4d661b] border border-[#84a938]/40">
+                Paso ${node.stepNum} de ${node.totalSteps}
+              </span>
+              ${state.history.length > 0 ? `<button onclick="goBack()" class="text-xs font-bold text-slate-500 hover:text-slate-800">← Paso anterior</button>` : ''}
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">${node.question}</h2>
+            <p class="text-sm text-slate-600 mb-6">${node.help}</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              ${node.options.map(opt => `
+                <button onclick="selectOption('${opt.next || ''}', '${opt.templateKey || ''}', '${opt.chip}')"
+                  class="w-full text-left p-5 rounded-xl border-2 border-slate-200 hover:border-[#84a938] hover:bg-[#f7faef] transition group">
+                  <div class="font-bold text-slate-900 group-hover:text-[#4d661b] text-base">${opt.label}</div>
+                  <div class="text-xs text-slate-500 mt-1.5 leading-relaxed">${opt.desc}</div>
+                </button>
+              `).join('')}
+            </div>
           </div>
         </div>
       `;
@@ -250,285 +360,404 @@
     function renderFormView(container) {
       const tpl = TEMPLATES[state.selectedTemplateKey];
       const f = state.form;
+      const esNuevaDecana = !f.fechaFirma || f.fechaFirma >= '2026-10-01';
+      const decanaNombre = esNuevaDecana ? 'LIBIA DENISE CANGREJO ALJURE' : 'SONIA ESPERANZA MONROY VARELA';
+      const decanaCC = esNuevaDecana ? '51.895.607' : '35.498.777';
 
       container.innerHTML = `
-        <div class="w-full space-y-5 fade-in">
-          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-800">${tpl.badge}</span>
-              <h2 class="text-xl font-bold text-slate-900 mt-1.5">${tpl.title}</h2>
-              <p class="text-xs text-slate-500 mt-0.5">Formato oficial institucional con escudo UNAL precargado automáticamente.</p>
-            </div>
-            <button onclick="goBack()" class="px-3.5 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-              ← Cambiar tipo de acta
-            </button>
-          </div>
+        <div class="w-full fade-in">
+          ${renderBreadcrumbBar(100, `DICTAMEN COMPLETADO (${state.breadcrumbs.length} PASOS)`)}
 
-          <!-- SECCIÓN 1: IDENTIFICACIÓN -->
-          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-            <h3 class="text-base font-bold text-slate-800 border-b pb-2">1. Identificación Contractual y Partes</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Tipo / Sigla</label>
-                <select onchange="fUpdate('sigla', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-                  ${['OPS','OSU','OCO','OCA','ATI'].map(s => `<option value="${s}" ${f.sigla===s?'selected':''}>${s}</option>`).join('')}
-                </select>
+          <!-- TARJETA PRINCIPAL CON BORDE LIMA -->
+          <div class="bg-white rounded-2xl shadow-sm border-2 unal-lime-border overflow-hidden">
+
+            <!-- BANNER OSCURO DEL DICTAMEN -->
+            <div class="unal-navy p-6 md:p-7 flex flex-wrap items-center justify-between gap-4">
+              <div class="max-w-2xl space-y-2.5">
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wide px-3 py-1 rounded-full bg-[#2b3829] text-[#b4dc5e] border border-[#84a938]/50">
+                  🏅 ${tpl.code}
+                </span>
+                <h2 class="text-xl md:text-2xl font-bold text-white leading-snug">${tpl.title}</h2>
               </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Número de Orden</label>
-                <input type="text" value="${f.numero}" placeholder="Ej: 129" oninput="fUpdate('numero', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Año</label>
-                <input type="text" value="${f.anio}" oninput="fUpdate('anio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Fecha Firma Acta</label>
-                <input type="date" value="${f.fechaFirma}" oninput="fUpdate('fechaFirma', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+
+              <div class="flex flex-wrap items-center gap-2.5">
+                <button onclick="togglePreview()" class="px-4 py-2.5 rounded-xl bg-slate-700/80 hover:bg-slate-600 text-white text-xs font-bold border border-slate-500 transition flex items-center gap-1.5">
+                  <span>👁</span> ${state.showPreview ? 'Ocultar vista previa' : 'Vista previa'}
+                </button>
+                <button id="btn-download-word" onclick="generateDirectDocx()" class="px-4 py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold shadow-md transition flex items-center gap-1.5">
+                  <span>📄</span> Descargar Word (.docx)
+                </button>
+                <button onclick="printOfficialPdf()" class="px-4 py-2.5 rounded-xl bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-bold shadow-md transition flex items-center gap-1.5">
+                  <span>📕</span> Descargar PDF (.pdf)
+                </button>
               </div>
             </div>
 
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700 uppercase">Datos del Contratista</span>
-                <div class="flex gap-4 text-xs font-semibold">
-                  <label class="flex items-center gap-1 cursor-pointer">
-                    <input type="radio" name="tpersona" ${f.tipoPersona==='natural'?'checked':''} onchange="fUpdate('tipoPersona','natural',true)"> Persona Natural
-                  </label>
-                  <label class="flex items-center gap-1 cursor-pointer">
-                    <input type="radio" name="tpersona" ${f.tipoPersona==='juridica'?'checked':''} onchange="fUpdate('tipoPersona','juridica',true)"> Persona Jurídica (Empresa)
-                  </label>
-                </div>
+            <!-- ALERTA DE DESCARGA DIRECTA SI EL NAVEGADOR BLOQUEA -->
+            <div id="download-ready-box" class="hidden mx-6 mt-5 bg-blue-50 border border-blue-300 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+              <span class="text-xs font-bold text-blue-950">✅ ¡Documento Word oficial generado correctamente!</span>
+              <a id="direct-download-link" href="#" download="Acta.docx" class="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-4 py-2 rounded-lg shadow">
+                📥 Guardar archivo (.docx)
+              </a>
+            </div>
+
+            <!-- VISTA PREVIA EN VIVO (OPCIONAL) -->
+            ${state.showPreview ? `
+              <div class="mx-6 mt-5 bg-slate-50 border border-slate-300 rounded-xl p-5 text-xs space-y-2 text-slate-800">
+                <div class="font-bold text-slate-900 uppercase border-b pb-1">Vista previa de encabezado y cifras</div>
+                <p><strong>Orden:</strong> CONTRATO / ORDEN CONTRACTUAL DE ${NOMBRE_ORDEN_MAP[f.sigla] || f.sigla} ${f.sigla} No. ${f.numero || '___'} de ${f.anio}</p>
+                <p><strong>Contratista:</strong> ${f.tipoPersona === 'juridica' ? (f.empresaNombre || '___') + ' (Rep. Legal: ' + (f.contratista || '___') + ')' : (f.contratista || '___')}</p>
+                <p><strong>Ordenadora del Gasto:</strong> ${decanaNombre} (C.C. ${decanaCC})</p>
+                <p><strong>Objeto:</strong> ${f.objeto || 'Sin diligenciar'}</p>
               </div>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label class="block text-xs font-bold text-slate-600 mb-1">${f.tipoPersona==='juridica'?'Nombre Representante Legal':'Nombre Completo Contratista'}</label>
-                  <input type="text" value="${f.contratista}" oninput="fUpdate('contratista', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-600 mb-1">Cédula de Ciudadanía</label>
-                  <input type="text" value="${f.identificacion}" oninput="fUpdate('identificacion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
-                </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-600 mb-1">Ciudad de Expedición C.C.</label>
-                  <input type="text" value="${f.ciudadExpedicion}" oninput="fUpdate('ciudadExpedicion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
-                </div>
+            ` : ''}
+
+            <div class="p-6 space-y-5">
+              <!-- ALCANCE DE ESTA MINUTA -->
+              <div class="bg-[#f7faef] border border-[#84a938]/50 rounded-xl p-3.5 text-xs text-slate-700 flex items-start gap-2.5">
+                <span class="w-4 h-4 rounded-full bg-[#5a7622] text-white inline-flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">i</span>
+                <div><strong class="text-[#3f5416]">Alcance de esta minuta:</strong> ${tpl.alcance}</div>
               </div>
-              ${f.tipoPersona === 'juridica' ? `
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+
+              <!-- BLOQUE DATOS DEL CONTRATO / ORDEN -->
+              <div class="border border-slate-200 rounded-xl p-5 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                  <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <span class="text-[#698829]">📝</span> Datos del Contrato / Orden para la Minuta Oficial
+                  </div>
+                  <span class="text-[11px] text-slate-400">Se exportan en letra Calibri 11pt con Escudo UNAL en todas las hojas</span>
+                </div>
+
+                <!-- FILA 1: TIPO, NÚMERO, AÑO, FECHA -->
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
                   <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">Razón Social de la Empresa</label>
-                    <input type="text" value="${f.empresaNombre}" oninput="fUpdate('empresaNombre', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
-                  </div>
-                  <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">NIT de la Empresa</label>
-                    <input type="text" value="${f.empresaNit}" oninput="fUpdate('empresaNit', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Rol de Seguimiento</label>
-                <select onchange="fUpdate('rolSupervision', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-                  ${['Supervisor','Supervisora','Interventor','Interventora'].map(r => `<option value="${r}" ${f.rolSupervision===r?'selected':''}>${r}</option>`).join('')}
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Nombre Supervisor(a) / Interventor(a)</label>
-                <input type="text" value="${f.supervisor}" oninput="fUpdate('supervisor', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Cédula (Opcional)</label>
-                <input type="text" value="${f.ccSupervisor}" oninput="fUpdate('ccSupervisor', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold text-slate-600 mb-1">Objeto Contractual</label>
-              <textarea rows="2" oninput="fUpdate('objeto', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">${f.objeto}</textarea>
-            </div>
-          </div>
-
-          <!-- SECCIÓN 2: PLAZOS, PRÓRROGAS Y SUSPENSIONES -->
-          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-            <h3 class="text-base font-bold text-slate-800 border-b pb-2">2. Plazos, Prórrogas y Suspensiones (Cuadro 1)</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Plazo Inicial (días)</label>
-                <input type="number" value="${f.plazoInicial}" oninput="fUpdate('plazoInicial', this.value); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Plazo Total (días)</label>
-                <input type="text" id="disp-plazo-total" readonly class="w-full border border-slate-200 bg-slate-100 rounded-lg px-3 py-2 text-sm font-bold text-slate-700">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Fecha Inicio</label>
-                <input type="date" value="${f.fechaInicio}" oninput="fUpdate('fechaInicio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Fecha Terminación</label>
-                <input type="date" value="${f.fechaTerminacion}" oninput="fUpdate('fechaTerminacion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-              <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                <div class="text-xs font-bold text-slate-700">Prórrogas (0 o vacío = No Aplica)</div>
-                ${f.prorrogas.map((p, idx) => `
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-500 w-24">${(f.prorrogas.length>1 || Number(p)>0) ? `Prórroga No. ${idx+1}` : 'Prórroga'}</span>
-                    <input type="number" value="${p}" placeholder="0" oninput="updateArr('prorrogas', ${idx}, this.value)" class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white">
-                    ${idx > 0 ? `<button onclick="removeArr('prorrogas', ${idx})" class="text-xs text-red-600 font-bold px-2">✕</button>` : ''}
-                  </div>
-                `).join('')}
-                ${(Number(f.prorrogas[0]) > 0 || f.prorrogas.length > 1) ? `
-                  <button onclick="addArr('prorrogas')" class="text-xs font-bold text-green-700 hover:underline">+ Agregar Prórroga No. ${f.prorrogas.length + 1}</button>
-                ` : ''}
-              </div>
-
-              <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                <div class="text-xs font-bold text-slate-700">Suspensiones (0 o vacío = No Aplica)</div>
-                ${f.suspensiones.map((s, idx) => `
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-slate-500 w-24">${(f.suspensiones.length>1 || Number(s)>0) ? `Suspensión No. ${idx+1}` : 'Suspensión'}</span>
-                    <input type="number" value="${s}" placeholder="0" oninput="updateArr('suspensiones', ${idx}, this.value)" class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm bg-white">
-                    ${idx > 0 ? `<button onclick="removeArr('suspensiones', ${idx})" class="text-xs text-red-600 font-bold px-2">✕</button>` : ''}
-                  </div>
-                `).join('')}
-                ${(Number(f.suspensiones[0]) > 0 || f.suspensiones.length > 1) ? `
-                  <button onclick="addArr('suspensiones')" class="text-xs font-bold text-green-700 hover:underline">+ Agregar Suspensión No. ${f.suspensiones.length + 1}</button>
-                ` : ''}
-              </div>
-            </div>
-          </div>
-
-          <!-- SECCIÓN 3: GARANTÍAS / PÓLIZAS (OPCIONAL) -->
-          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-3">
-            <div class="flex items-center justify-between">
-              <h3 class="text-base font-bold text-slate-800">3. Garantías / Pólizas (Opcional)</h3>
-              <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
-                <input type="checkbox" ${f.tienePolizas?'checked':''} onchange="fUpdate('tienePolizas', this.checked, true)"> La orden exigió pólizas
-              </label>
-            </div>
-            ${f.tienePolizas ? `
-              <div class="space-y-3 pt-2">
-                <div>
-                  <label class="block text-xs font-bold text-slate-600 mb-1">Compañía Aseguradora</label>
-                  <input type="text" value="${f.aseguradora}" oninput="fUpdate('aseguradora', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-                </div>
-                ${f.garantias.map((g, idx) => `
-                  <div class="grid grid-cols-2 sm:grid-cols-7 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs">
-                    <select onchange="updateGar(${idx},'tipo',this.value)" class="border rounded px-2 py-1 bg-white">
-                      <option value="Inicial" ${g.tipo==='Inicial'?'selected':''}>Inicial</option>
-                      <option value="Adición/Modificación" ${g.tipo==='Adición/Modificación'?'selected':''}>Adición/Modif.</option>
-                      <option value="Suspensión" ${g.tipo==='Suspensión'?'selected':''}>Suspensión</option>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo / Sigla</label>
+                    <select onchange="fUpdate('sigla', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                      <option value="OSU" ${f.sigla==='OSU'?'selected':''}>OSU (Suministro)</option>
+                      <option value="OPS" ${f.sigla==='OPS'?'selected':''}>OPS (Prestación de Servicios)</option>
+                      <option value="OCO" ${f.sigla==='OCO'?'selected':''}>OCO (Compra)</option>
+                      <option value="OCA" ${f.sigla==='OCA'?'selected':''}>OCA (Arrendamiento)</option>
+                      <option value="ATI" ${f.sigla==='ATI'?'selected':''}>ATI (Adición / Otrosí)</option>
                     </select>
-                    <input type="text" placeholder="Garantía No." value="${g.numero}" oninput="updateGar(${idx},'numero',this.value)" class="border rounded px-2 py-1 bg-white">
-                    <input type="text" placeholder="Amparos" value="${g.amparos}" oninput="updateGar(${idx},'amparos',this.value)" class="border rounded px-2 py-1 bg-white">
-                    <input type="text" placeholder="Valor ($)" value="${g.valor}" oninput="updateGar(${idx},'valor',this.value)" class="border rounded px-2 py-1 bg-white">
-                    <input type="date" value="${g.inicio}" oninput="updateGar(${idx},'inicio',this.value)" class="border rounded px-2 py-1 bg-white">
-                    <input type="date" value="${g.fin}" oninput="updateGar(${idx},'fin',this.value)" class="border rounded px-2 py-1 bg-white">
-                    <div class="flex gap-1">
-                      <input type="date" value="${g.aprobacion}" oninput="updateGar(${idx},'aprobacion',this.value)" class="w-full border rounded px-2 py-1 bg-white">
-                      ${idx>0 ? `<button onclick="removeGar(${idx})" class="text-red-600 font-bold px-1">✕</button>` : ''}
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Número de Orden</label>
+                    <input type="text" value="${f.numero}" placeholder="Ej: 64" oninput="fUpdate('numero', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Año</label>
+                    <input type="text" value="${f.anio}" oninput="fUpdate('anio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Firma del Acta</label>
+                    <input type="date" value="${f.fechaFirma}" oninput="fUpdate('fechaFirma', this.value, true)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                </div>
+
+                <!-- IDENTIFICACIÓN DEL CONTRATISTA -->
+                <div class="bg-slate-50/80 border border-slate-200/80 rounded-xl p-4 space-y-3">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">IDENTIFICACIÓN DEL CONTRATISTA</span>
+                    <div class="flex items-center gap-4 text-xs font-semibold text-slate-700">
+                      <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="tpersona" ${f.tipoPersona==='natural'?'checked':''} onchange="fUpdate('tipoPersona','natural',true)"> Persona Natural
+                      </label>
+                      <label class="flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="tpersona" ${f.tipoPersona==='juridica'?'checked':''} onchange="fUpdate('tipoPersona','juridica',true)"> Persona Jurídica (Empresa)
+                      </label>
                     </div>
                   </div>
-                `).join('')}
-                <button onclick="addGar()" class="text-xs font-bold text-green-700 hover:underline">+ Agregar fila de garantía</button>
-              </div>
-            ` : '<p class="text-xs text-slate-500">Marca la casilla si deseas incluir el cuadro de amparos y vigencias.</p>'}
-          </div>
-
-          <!-- SECCIÓN 4: BALANCE FINANCIERO Y PAGOS ORPA -->
-          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-            <h3 class="text-base font-bold text-slate-800 border-b pb-2">4. Balance Financiero y Pagos ORPA (Cuadro 2)</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Valor Inicial (1) ($)</label>
-                <input type="number" value="${f.valorInicial}" oninput="fUpdate('valorInicial', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Valor Adiciones (2) ($)</label>
-                <input type="number" value="${f.valorAdicion}" oninput="fUpdate('valorAdicion', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Causado sin pagar (4) ($)</label>
-                <input type="number" value="${f.valorPendiente}" oninput="fUpdate('valorPendiente', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
-              </div>
-            </div>
-
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-700">Pagos efectuados al contratista (ORPA)</span>
-                <button onclick="addPago()" class="text-xs font-bold bg-green-700 text-white px-3 py-1 rounded-lg hover:bg-green-800">+ Agregar Pago ORPA</button>
-              </div>
-              ${f.pagos.map((p, idx) => `
-                <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1">
-                  <input type="text" placeholder="ORPA No." value="${p.orpa}" oninput="updatePago(${idx},'orpa',this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
-                  <input type="date" value="${p.fecha}" oninput="updatePago(${idx},'fecha',this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
-                  <input type="number" placeholder="Valor ($)" value="${p.valor}" oninput="updatePago(${idx},'valor',Number(this.value)); calcAll()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white">
-                  <button onclick="removePago(${idx})" class="text-xs font-bold text-red-600 border border-red-200 bg-red-50 rounded-lg py-1.5">Eliminar pago</button>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">${f.tipoPersona==='juridica'?'Nombre Representante Legal':'Nombre Completo Contratista'}</label>
+                      <input type="text" placeholder="Ej: JUAN PÉREZ" value="${f.contratista}" oninput="fUpdate('contratista', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Número de Cédula</label>
+                      <input type="text" placeholder="1.018.437.843" value="${f.identificacion}" oninput="fUpdate('identificacion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Ciudad de Expedición C.C.</label>
+                      <input type="text" value="${f.ciudadExpedicion}" oninput="fUpdate('ciudadExpedicion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    </div>
+                  </div>
+                  ${f.tipoPersona === 'juridica' ? `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Razón Social de la Empresa</label>
+                        <input type="text" placeholder="Ej: SOLUCIONES SAS" value="${f.empresaNombre}" oninput="fUpdate('empresaNombre', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                      </div>
+                      <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">NIT de la Empresa</label>
+                        <input type="text" placeholder="900.123.456-7" value="${f.empresaNit}" oninput="fUpdate('empresaNit', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                      </div>
+                    </div>
+                  ` : ''}
                 </div>
-              `).join('')}
-            </div>
 
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-              <div>
-                <div class="text-[11px] font-bold text-green-800 uppercase">Valor Total (1+2)</div>
-                <div id="sum-total" class="text-base font-bold text-slate-900">$0</div>
-              </div>
-              <div>
-                <div class="text-[11px] font-bold text-green-800 uppercase">Pagado a la fecha (3)</div>
-                <div id="sum-pagado" class="text-base font-bold text-slate-900">$0</div>
-              </div>
-              <div>
-                <div class="text-[11px] font-bold text-green-800 uppercase">Total Ejecutado (3+4)</div>
-                <div id="sum-ejecutado" class="text-base font-bold text-slate-900">$0</div>
-              </div>
-              <div>
-                <div class="text-[11px] font-bold text-green-800 uppercase">Saldo a Anular</div>
-                <div id="sum-anular" class="text-base font-bold text-green-900">$0</div>
-              </div>
-            </div>
+                <!-- SUPERVISIÓN -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Rol de Seguimiento</label>
+                    <select onchange="fUpdate('rolSupervision', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                      ${['Supervisor','Supervisora','Interventor','Interventora'].map(r => `<option value="${r}" ${f.rolSupervision===r?'selected':''}>${r}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nombre del ${f.rolSupervision}</label>
+                    <input type="text" placeholder="Nombre completo" value="${f.supervisor}" oninput="fUpdate('supervisor', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Cédula Supervisor (Opcional)</label>
+                    <input type="text" placeholder="Ej: 19458036" value="${f.ccSupervisor}" oninput="fUpdate('ccSupervisor', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                </div>
 
-            ${tpl.hasSaldoAnular ? `
-              <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">Justificación del saldo sin ejecutar por anular</label>
-                <textarea rows="2" placeholder="Indique brevemente el motivo por el cual quedó saldo sin ejecutar..." oninput="fUpdate('justificacionSaldo', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">${f.justificacionSaldo}</textarea>
-              </div>
-            ` : ''}
-
-            ${tpl.isAnticipada ? `
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- OBJETO -->
                 <div>
-                  <label class="block text-xs font-bold text-slate-600 mb-1">Fecha de terminación anticipada</label>
-                  <input type="date" value="${f.fechaAnticipada}" oninput="fUpdate('fechaAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Objeto Contractual</label>
+                  <textarea rows="2" placeholder="Escriba el objeto contractual exacto de la orden o contrato..." oninput="fUpdate('objeto', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">${f.objeto}</textarea>
                 </div>
-                <div>
-                  <label class="block text-xs font-bold text-slate-600 mb-1">Motivo de la terminación anticipada</label>
-                  <input type="text" value="${f.motivoAnticipada}" oninput="fUpdate('motivoAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+
+                <!-- PLAZOS Y FECHAS -->
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Plazo Inicial (días)</label>
+                    <input type="number" placeholder="Ej: 10 días" value="${f.plazoInicial}" oninput="fUpdate('plazoInicial', this.value); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Plazo Total (días)</label>
+                    <input type="text" id="disp-plazo-total" placeholder="Auto o manual" readonly class="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 text-sm font-bold text-slate-700">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Inicio</label>
+                    <input type="date" value="${f.fechaInicio}" oninput="fUpdate('fechaInicio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Terminación</label>
+                    <input type="date" value="${f.fechaTerminacion}" oninput="fUpdate('fechaTerminacion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                </div>
+
+                <!-- PRÓRROGAS Y SUSPENSIONES -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div class="border border-slate-200 rounded-xl p-3.5 space-y-2">
+                    <div class="text-xs font-bold text-slate-700">Prórrogas (en días calendario)</div>
+                    ${f.prorrogas.map((p, idx) => `
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500 w-24">${(f.prorrogas.length>1 || Number(p)>0) ? `Prórroga No. ${idx+1}:` : 'Prórroga:'}</span>
+                        <input type="number" value="${p}" placeholder="0 o No Aplica" oninput="updateArr('prorrogas', ${idx}, this.value)" class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-xs">
+                        ${idx > 0 ? `<button onclick="removeArr('prorrogas', ${idx})" class="text-xs text-red-600 font-bold px-1.5">✕</button>` : ''}
+                      </div>
+                    `).join('')}
+                    ${(Number(f.prorrogas[0]) > 0 || f.prorrogas.length > 1) ? `
+                      <button onclick="addArr('prorrogas')" class="text-xs font-bold text-[#5a7622] hover:underline">+ Agregar Prórroga No. ${f.prorrogas.length + 1}</button>
+                    ` : ''}
+                  </div>
+
+                  <div class="border border-slate-200 rounded-xl p-3.5 space-y-2">
+                    <div class="text-xs font-bold text-slate-700">Suspensiones (en días calendario)</div>
+                    ${f.suspensiones.map((s, idx) => `
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500 w-24">${(f.suspensiones.length>1 || Number(s)>0) ? `Suspensión No. ${idx+1}:` : 'Suspensión:'}</span>
+                        <input type="number" value="${s}" placeholder="0 o No Aplica" oninput="updateArr('suspensiones', ${idx}, this.value)" class="flex-1 border border-slate-300 rounded-lg px-3 py-1.5 text-xs">
+                        ${idx > 0 ? `<button onclick="removeArr('suspensiones', ${idx})" class="text-xs text-red-600 font-bold px-1.5">✕</button>` : ''}
+                      </div>
+                    `).join('')}
+                    ${(Number(f.suspensiones[0]) > 0 || f.suspensiones.length > 1) ? `
+                      <button onclick="addArr('suspensiones')" class="text-xs font-bold text-[#5a7622] hover:underline">+ Agregar Suspensión No. ${f.suspensiones.length + 1}</button>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <!-- GARANTÍAS / PÓLIZAS -->
+                <div class="border border-slate-200 rounded-xl p-3.5 space-y-3">
+                  <label class="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+                    <input type="checkbox" ${f.tienePolizas?'checked':''} onchange="fUpdate('tienePolizas', this.checked, true)">
+                    Incluir cuadro de Garantías / Pólizas (si el contrato exigió póliza)
+                  </label>
+                  ${f.tienePolizas ? `
+                    <div class="space-y-2.5 pt-1">
+                      <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Compañía Aseguradora</label>
+                        <input type="text" placeholder="Ej: Seguros del Estado S.A." value="${f.aseguradora}" oninput="fUpdate('aseguradora', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
+                      </div>
+                      ${f.garantias.map((g, idx) => `
+                        <div class="grid grid-cols-2 sm:grid-cols-7 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs">
+                          <select onchange="updateGar(${idx},'tipo',this.value)" class="border rounded px-2 py-1 bg-white">
+                            <option value="Inicial" ${g.tipo==='Inicial'?'selected':''}>Inicial</option>
+                            <option value="Adición/Modificación" ${g.tipo==='Adición/Modificación'?'selected':''}>Adición/Modif.</option>
+                            <option value="Suspensión" ${g.tipo==='Suspensión'?'selected':''}>Suspensión</option>
+                          </select>
+                          <input type="text" placeholder="Garantía No." value="${g.numero}" oninput="updateGar(${idx},'numero',this.value)" class="border rounded px-2 py-1 bg-white">
+                          <input type="text" placeholder="Amparos" value="${g.amparos}" oninput="updateGar(${idx},'amparos',this.value)" class="border rounded px-2 py-1 bg-white">
+                          <input type="text" placeholder="Valor ($)" value="${g.valor}" oninput="updateGar(${idx},'valor',this.value)" class="border rounded px-2 py-1 bg-white">
+                          <input type="date" value="${g.inicio}" oninput="updateGar(${idx},'inicio',this.value)" class="border rounded px-2 py-1 bg-white">
+                          <input type="date" value="${g.fin}" oninput="updateGar(${idx},'fin',this.value)" class="border rounded px-2 py-1 bg-white">
+                          <div class="flex gap-1">
+                            <input type="date" value="${g.aprobacion}" oninput="updateGar(${idx},'aprobacion',this.value)" class="w-full border rounded px-2 py-1 bg-white">
+                            ${idx>0 ? `<button onclick="removeGar(${idx})" class="text-red-600 font-bold px-1">✕</button>` : ''}
+                          </div>
+                        </div>
+                      `).join('')}
+                      <button onclick="addGar()" class="text-xs font-bold text-[#5a7622] hover:underline">+ Agregar fila de garantía</button>
+                    </div>
+                  ` : ''}
+                </div>
+
+                <!-- PAGOS EFECTUADOS AL CONTRATISTA (CUADRO 2 - ORPA) -->
+                <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wide">PAGOS EFECTUADOS AL CONTRATISTA (CUADRO 2 - ORPA)</span>
+                    <button onclick="addPago()" class="text-xs font-bold bg-[#4d6e1d] hover:bg-[#3d5817] text-white px-3 py-1.5 rounded-lg transition">
+                      + Agregar Pago ORPA
+                    </button>
+                  </div>
+                  ${f.pagos.map((p, idx) => `
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end bg-slate-50 p-3 rounded-lg border border-slate-200/80">
+                      <div class="sm:col-span-2">
+                        <label class="block text-[11px] text-slate-500 mb-1">Pago No.</label>
+                        <input type="text" value="${idx + 1}" readonly class="w-full border border-slate-200 bg-white rounded-lg px-3 py-1.5 text-xs font-bold text-slate-600">
+                      </div>
+                      <div class="sm:col-span-3">
+                        <label class="block text-[11px] text-slate-500 mb-1">ORPA No.</label>
+                        <input type="text" placeholder="Ej: 7866" value="${p.orpa}" oninput="updatePago(${idx},'orpa',this.value)" class="w-full border border-slate-300 bg-white rounded-lg px-3 py-1.5 text-xs">
+                      </div>
+                      <div class="sm:col-span-3">
+                        <label class="block text-[11px] text-slate-500 mb-1">Fecha Pago</label>
+                        <input type="date" value="${p.fecha}" oninput="updatePago(${idx},'fecha',this.value)" class="w-full border border-slate-300 bg-white rounded-lg px-3 py-1.5 text-xs">
+                      </div>
+                      <div class="sm:col-span-3">
+                        <label class="block text-[11px] text-slate-500 mb-1">Valor ($)</label>
+                        <input type="number" placeholder="0" value="${p.valor}" oninput="updatePago(${idx},'valor',Number(this.value)); calcAll()" class="w-full border border-slate-300 bg-white rounded-lg px-3 py-1.5 text-xs">
+                      </div>
+                      <div class="sm:col-span-1">
+                        <button onclick="removePago(${idx})" class="w-full text-xs font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg py-1.5">
+                          🗑 Quitar
+                        </button>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+
+                <!-- JUSTIFICACIÓN OBLIGATORIA DEL SALDO (SI APLICA) -->
+                ${tpl.hasSaldoAnular ? `
+                  <div class="bg-[#fffbeb] border border-[#f59e0b]/60 rounded-xl p-4 space-y-2">
+                    <label class="block text-xs font-bold text-[#92400e]">Justificación del Saldo sin Ejecutar / Observación Financiera (Considerandos)</label>
+                    <input type="text" placeholder="Ej: no se requirieron la totalidad de los bienes/servicios inicialmente estimados dentro del proyecto"
+                      value="${f.justificacionSaldo}" oninput="fUpdate('justificacionSaldo', this.value)"
+                      class="w-full border border-[#f59e0b]/60 bg-white rounded-lg px-3 py-2 text-sm">
+                  </div>
+                ` : ''}
+
+                ${tpl.isAnticipada ? `
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Fecha de terminación anticipada</label>
+                      <input type="date" value="${f.fechaAnticipada}" oninput="fUpdate('fechaAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Motivo de la terminación anticipada</label>
+                      <input type="text" value="${f.motivoAnticipada}" oninput="fUpdate('motivoAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+
+              <!-- TARJETAS INFORMATIVAS (JUSTIFICACIÓN + ORDENADORA DEL GASTO VIGENTE) -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${tpl.hasSaldoAnular ? `
+                  <div class="bg-[#fffbeb] border border-[#fcd34d] rounded-xl p-4 flex items-start gap-3">
+                    <span class="text-amber-600 text-base mt-0.5">⚠️</span>
+                    <div class="text-xs text-[#92400e] space-y-1">
+                      <div class="font-bold text-sm">Justificación Obligatoria del Saldo</div>
+                      <p>Al existir saldo sin ejecutar para anular, el acta deja constancia expresa del motivo financiero en los considerandos y ordena su anulación en los acuerdos.</p>
+                    </div>
+                  </div>
+                ` : `
+                  <div class="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 flex items-start gap-3">
+                    <span class="text-emerald-600 text-base mt-0.5">✅</span>
+                    <div class="text-xs text-emerald-900 space-y-1">
+                      <div class="font-bold text-sm">Ejecución Presupuestal Completa</div>
+                      <p>No queda remanente presupuestal para liberar/anular. La cláusula de anulación presupuestal se omite automáticamente.</p>
+                    </div>
+                  </div>
+                `}
+
+                <div class="bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-4 flex items-start gap-3">
+                  <span class="text-blue-600 text-base mt-0.5">✒️</span>
+                  <div class="text-xs text-[#1e40af] space-y-1">
+                    <div class="font-bold text-sm">Ordenadora del Gasto Vigente</div>
+                    <p>Según la fecha de firma (${esNuevaDecana ? 'a partir del 01/10/2026' : 'anterior al 01/10/2026'}), el acta se genera automáticamente a nombre de la Decana <strong>${decanaNombre}</strong> (C.C. ${decanaCC}).</p>
+                  </div>
                 </div>
               </div>
-            ` : ''}
-          </div>
 
-          <!-- BOTÓN DIRECTO DE DESCARGA -->
-          <div class="pb-10 space-y-3">
-            <button id="btn-download" onclick="generateDirectDocx()" class="w-full unal-green unal-green-hover text-white font-bold py-4 px-6 rounded-2xl shadow-md text-base transition">
-              ⬇ Generar y Descargar Acta Oficial (.docx)
-            </button>
-            <div id="download-ready-box" class="hidden bg-blue-50 border border-blue-300 rounded-2xl p-4 text-center space-y-2">
-              <div class="text-sm font-bold text-blue-950">✅ ¡Tu documento Word está listo!</div>
-              <a id="direct-download-link" href="#" download="Acta.docx" class="inline-block bg-blue-700 hover:bg-blue-800 text-white font-bold text-sm px-6 py-2.5 rounded-xl shadow">
-                📥 Guardar archivo Word (.docx) ahora
-              </a>
+              <!-- BALANCE FINANCIERO (CUADRO 2) — CIFRAS PARA LA MINUTA -->
+              <div class="border border-slate-200 rounded-xl p-5 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <span>🧮</span> Balance Financiero (Cuadro 2) — Cifras para la Minuta
+                  </div>
+                  <span id="badge-balance" class="text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                    Balance Cuadrado
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Valor Inicial (1)</label>
+                    <input type="number" value="${f.valorInicial}" oninput="fUpdate('valorInicial', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Vr. Adiciones (2)</label>
+                    <input type="number" value="${f.valorAdicion}" oninput="fUpdate('valorAdicion', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Vr. Pagado a la fecha (3)</label>
+                    <input type="text" id="disp-pagado-input" readonly class="w-full border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Causado sin pagar (4)</label>
+                    <input type="number" value="${f.valorPendiente}" oninput="fUpdate('valorPendiente', Number(this.value)); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2 border-t border-slate-100">
+                  <div class="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50">
+                    <div class="text-[11px] text-slate-500 font-semibold">Valor Total (1) + (2)</div>
+                    <div id="sum-total" class="text-lg font-extrabold text-slate-900 mt-0.5">$ 0</div>
+                  </div>
+                  <div class="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50">
+                    <div class="text-[11px] text-slate-500 font-semibold">Total Ejecutado (3) + (4)</div>
+                    <div id="sum-ejecutado" class="text-lg font-extrabold text-[#1d4ed8] mt-0.5">$ 0</div>
+                  </div>
+                  <div class="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50">
+                    <div class="text-[11px] text-slate-500 font-semibold">Saldo a Anular / Liberar</div>
+                    <div id="sum-anular" class="text-lg font-extrabold text-[#c2410c] mt-0.5">$ 0</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PIE DE TARJETA CON BOTONES DE NAVEGACIÓN -->
+              <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
+                <button onclick="goBack()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                  ← Modificar última respuesta
+                </button>
+                <button onclick="resetWizard()" class="px-4 py-2.5 rounded-xl bg-[#f1f6e4] hover:bg-[#e4efc9] text-[#4d661b] border border-[#84a938]/50 text-xs font-bold transition">
+                  ↺ Evaluar otro contrato
+                </button>
+              </div>
             </div>
           </div>
         </div>
       `;
       calcAll();
+    }
+
+    function togglePreview() {
+      state.showPreview = !state.showPreview;
+      render();
     }
 
     function fUpdate(key, val, rerender = false) { state.form[key] = val; if (rerender) render(); }
@@ -564,11 +793,22 @@
       const vEje = vPag + vPen;
       const vAnu = vTot - vEje;
 
-      const fmt = n => '$' + n.toLocaleString('es-CO');
-      if (document.getElementById('sum-total')) document.getElementById('sum-total').innerText = fmt(vTot);
-      if (document.getElementById('sum-pagado')) document.getElementById('sum-pagado').innerText = fmt(vPag);
-      if (document.getElementById('sum-ejecutado')) document.getElementById('sum-ejecutado').innerText = fmt(vEje);
-      if (document.getElementById('sum-anular')) document.getElementById('sum-anular').innerText = fmt(vAnu);
+      const fmtSpace = n => '$ ' + n.toLocaleString('es-CO');
+      if (document.getElementById('disp-pagado-input')) document.getElementById('disp-pagado-input').value = vPag;
+      if (document.getElementById('sum-total')) document.getElementById('sum-total').innerText = fmtSpace(vTot);
+      if (document.getElementById('sum-ejecutado')) document.getElementById('sum-ejecutado').innerText = fmtSpace(vEje);
+      if (document.getElementById('sum-anular')) document.getElementById('sum-anular').innerText = fmtSpace(vAnu);
+
+      const badge = document.getElementById('badge-balance');
+      if (badge) {
+        if (vAnu < 0) {
+          badge.innerText = 'Descuadre: Ejecutado supera Total';
+          badge.className = 'text-[11px] font-bold px-3 py-1 rounded-full bg-red-100 text-red-800';
+        } else {
+          badge.innerText = 'Balance Cuadrado';
+          badge.className = 'text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800';
+        }
+      }
     }
 
     function formatDateLong(iso) {
@@ -584,7 +824,6 @@
       return `${d}/${m}/${y}`;
     }
 
-    // ELIMINA LOS CONTROLES DE CONTENIDO OCULTOS (<w:sdt>) DE WORD MANTENIENDO SU TEXTO LIMPIO
     function unwrapAllSdt(xmlDoc) {
       const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
       let sdts = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'sdt'));
@@ -671,12 +910,12 @@
     }
 
     async function generateDirectDocx() {
-      const btn = document.getElementById('btn-download');
+      const btn = document.getElementById('btn-download-word');
       const tpl = TEMPLATES[state.selectedTemplateKey];
       const f = state.form;
 
       btn.disabled = true;
-      btn.innerText = '⏳ Generando documento oficial desde plantilla UNAL...';
+      btn.innerHTML = '<span>⏳</span> Generando...';
 
       try {
         const resp = await fetch(`${tpl.url}?v=${Date.now()}`);
@@ -756,10 +995,7 @@
           const xmlStr = zip.file(fileName).asText();
           const xmlDoc = parser.parseFromString(xmlStr, 'application/xml');
 
-          // 1. Limpiar controles de contenido (<w:sdt>) ocultos de Word
           unwrapAllSdt(xmlDoc);
-
-          // 2. Reemplazar textos del documento
           replaceParagraphTexts(xmlDoc, textReplacements);
 
           if (fileName === 'word/document.xml') {
@@ -769,7 +1005,6 @@
               const tblText = tbl.textContent.toUpperCase();
               const rows = Array.from(tbl.getElementsByTagNameNS(ns, 'tr'));
 
-              // TABLA 1: INFORMACIÓN GENERAL
               if (tblText.includes('PLAZO INICIAL') && tblText.includes('OBJETO')) {
                 rows.forEach(tr => {
                   const cells = Array.from(tr.getElementsByTagNameNS(ns, 'tc'));
@@ -795,7 +1030,6 @@
                 });
               }
 
-              // TABLA 2: GARANTÍAS / PÓLIZAS
               else if (tblText.includes('VIGENCIA DE LOS AMPAROS')) {
                 if (f.tienePolizas) {
                   let garIdx = 0;
@@ -816,9 +1050,9 @@
                 }
               }
 
-              // TABLA 3: BALANCE FINANCIERO Y PAGOS ORPA
               else if (tblText.includes('BALANCE FINANCIERO')) {
                 let pagoRowIdx = 0;
+                const pagosActivos = f.pagos.filter(p => p.orpa || Number(p.valor) > 0);
                 rows.forEach((tr, rIdx) => {
                   const cells = Array.from(tr.getElementsByTagNameNS(ns, 'tc'));
                   if (!cells.length) return;
@@ -834,8 +1068,8 @@
                     }
                   }
 
-                  if (rIdx >= 3 && cells.length >= 7 && pagoRowIdx < f.pagos.length) {
-                    const p = f.pagos[pagoRowIdx++];
+                  if (rIdx >= 3 && cells.length >= 7 && pagoRowIdx < pagosActivos.length) {
+                    const p = pagosActivos[pagoRowIdx++];
                     setCellText(cells[3], String(pagoRowIdx));
                     setCellText(cells[4], p.orpa || '');
                     setCellText(cells[5], formatDateShort(p.fecha));
@@ -869,8 +1103,14 @@
         alert('Error al generar el documento: ' + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerText = '⬇ Generar y Descargar Acta Oficial (.docx)';
+        btn.innerHTML = '<span>📄</span> Descargar Word (.docx)';
       }
+    }
+
+    function printOfficialPdf() {
+      state.showPreview = true;
+      render();
+      setTimeout(() => window.print(), 200);
     }
 
     render();
