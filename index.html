@@ -8,7 +8,8 @@
   <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
   <script src="https://unpkg.com/docx-preview@0.1.20/dist/docx-preview.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     html, body {
       margin: 0;
@@ -930,7 +931,7 @@
                     </button>
                   </div>
                   ${f.considerandosExtra.length === 0 ? `
-                    <p class="text-xs text-slate-400">Si necesitas dejar constancia de hechos adicionales (cesiones, suspensiones, aclaraciones), haz clic en "+ Agregar Considerando". Se insertarán numerados antes de los considerandos finales de verificación y recomendación del supervisor.</p>
+                    <p class="text-xs text-slate-400">Si necesitas dejar constancia de hechos adicionales (cesiones, suspensiones, aclaraciones), haz clic en "+ Agregar Considerando". Se insertarán numerados y con espacio de separación antes de los considerandos finales de verificación y recomendación del supervisor.</p>
                   ` : f.considerandosExtra.map((c, idx) => `
                     <div class="flex items-start gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                       <span class="text-xs font-bold text-slate-500 pt-1.5">#${idx + 1}</span>
@@ -1349,7 +1350,7 @@
           });
         }
 
-        // INSERTAR CONSIDERANDOS ADICIONALES ANTES DEL PÁRRAFO FINAL DE SUPERVISIÓN ("EN CUMPLIMIENTO DE LAS FUNCIONES ASIGNADAS POR EL MANUAL...")
+        // INSERTAR CONSIDERANDOS ADICIONALES ANTES DEL PÁRRAFO FINAL DE SUPERVISIÓN CON ESPACIO DE SEPARACIÓN
         if (fileName === 'word/document.xml') {
           const extras = f.considerandosExtra
             .map(x => normalizeSentenceCase(x, true))
@@ -1365,15 +1366,16 @@
 
               extras.forEach(texto => {
                 const newP = xmlDoc.createElementNS(ns, 'w:p');
+                let pPrNode;
                 if (refPPr) {
-                  newP.appendChild(refPPr.cloneNode(true));
+                  pPrNode = refPPr.cloneNode(true);
                 } else {
-                  const pPr = xmlDoc.createElementNS(ns, 'w:pPr');
+                  pPrNode = xmlDoc.createElementNS(ns, 'w:pPr');
                   const jc = xmlDoc.createElementNS(ns, 'w:jc');
                   jc.setAttribute('w:val', 'both');
-                  pPr.appendChild(jc);
-                  newP.appendChild(pPr);
+                  pPrNode.appendChild(jc);
                 }
+                newP.appendChild(pPrNode);
 
                 const r = xmlDoc.createElementNS(ns, 'w:r');
                 const rPr = xmlDoc.createElementNS(ns, 'w:rPr');
@@ -1392,6 +1394,18 @@
                 newP.appendChild(r);
 
                 pTarget.parentNode.insertBefore(newP, pTarget);
+
+                // Párrafo separador en blanco después del considerando agregado
+                const spacerP = xmlDoc.createElementNS(ns, 'w:p');
+                const spacerPPr = xmlDoc.createElementNS(ns, 'w:pPr');
+                const spacerSpacing = xmlDoc.createElementNS(ns, 'w:spacing');
+                spacerSpacing.setAttribute('w:before', '0');
+                spacerSpacing.setAttribute('w:after', '0');
+                spacerSpacing.setAttribute('w:line', '120');
+                spacerSpacing.setAttribute('w:lineRule', 'auto');
+                spacerPPr.appendChild(spacerSpacing);
+                spacerP.appendChild(spacerPPr);
+                pTarget.parentNode.insertBefore(spacerP, pTarget);
               });
             }
           }
