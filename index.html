@@ -173,7 +173,7 @@
       },
       anticipada_con_saldo: {
         code: 'TERMINACIÓN ANTICIPADA • CASO 6 • Con Saldo a Anular',
-        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Con Saldo para Anular',
+        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Con Saldo a Anular',
         alcance: 'Terminación anticipada acordada entre las partes que genera un remanente presupuestal sin ejecutar que debe ser anulado.',
         url: `${GITHUB_BASE}/anticipada_con_saldo.docx`,
         hasSaldoAnular: true,
@@ -921,16 +921,16 @@
                   `).join('')}
                 </div>
 
-                <!-- CONSIDERANDOS ADICIONALES (SE INSERTAN DESPUÉS DEL NUMERAL 4) -->
+                <!-- CONSIDERANDOS ADICIONALES (SE INSERTAN ANTES DE LOS PÁRRAFOS DE CIERRE) -->
                 <div class="border border-slate-200 rounded-xl p-4 space-y-3">
                   <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wide">CONSIDERANDOS ADICIONALES (SE INSERTAN NUMERADOS DESPUÉS DEL NUMERAL 4)</span>
+                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wide">CONSIDERANDOS ADICIONALES (SE INSERTAN ANTES DE LOS PÁRRAFOS FINALES DE SUPERVISIÓN)</span>
                     <button type="button" onclick="addConsiderando()" class="text-xs font-bold bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg transition">
                       + Agregar Considerando
                     </button>
                   </div>
                   ${f.considerandosExtra.length === 0 ? `
-                    <p class="text-xs text-slate-400">Si necesitas dejar constancia de hechos adicionales (cesiones, suspensiones, aclaraciones), haz clic en "+ Agregar Considerando". Se insertarán numerados inmediatamente después del considerando 4 (ejecución financiera).</p>
+                    <p class="text-xs text-slate-400">Si necesitas dejar constancia de hechos adicionales (cesiones, suspensiones, aclaraciones), haz clic en "+ Agregar Considerando". Se insertarán numerados antes de los considerandos finales de verificación y recomendación del supervisor.</p>
                   ` : f.considerandosExtra.map((c, idx) => `
                     <div class="flex items-start gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                       <span class="text-xs font-bold text-slate-500 pt-1.5">#${idx + 1}</span>
@@ -1349,6 +1349,7 @@
           });
         }
 
+        // INSERTAR CONSIDERANDOS ADICIONALES ANTES DEL PÁRRAFO FINAL DE SUPERVISIÓN ("EN CUMPLIMIENTO DE LAS FUNCIONES ASIGNADAS POR EL MANUAL...")
         if (fileName === 'word/document.xml') {
           const extras = f.considerandosExtra
             .map(x => normalizeSentenceCase(x, true))
@@ -1356,12 +1357,11 @@
 
           if (extras.length > 0) {
             const allPs = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'p'));
-            const p4 = allPs.find(p => p.textContent.toUpperCase().includes('EN RELACIÓN CON LA EJECUCIÓN FINANCIERA'))
-                    || allPs.find(p => p.textContent.toUpperCase().includes('EN CUMPLIMIENTO DE LAS FUNCIONES ASIGNADAS POR EL MANUAL'));
+            const pTarget = allPs.find(p => p.textContent.toUpperCase().includes('EN CUMPLIMIENTO DE LAS FUNCIONES ASIGNADAS POR EL MANUAL'))
+                         || allPs.find(p => p.textContent.toUpperCase().includes('RECOMIENDA AL ORDENADOR DEL GASTO'));
 
-            if (p4 && p4.parentNode) {
-              const refPPr = p4.getElementsByTagNameNS(ns, 'pPr')[0];
-              let anchorNode = p4.nextSibling;
+            if (pTarget && pTarget.parentNode) {
+              const refPPr = pTarget.getElementsByTagNameNS(ns, 'pPr')[0];
 
               extras.forEach(texto => {
                 const newP = xmlDoc.createElementNS(ns, 'w:p');
@@ -1391,7 +1391,7 @@
                 r.appendChild(t);
                 newP.appendChild(r);
 
-                p4.parentNode.insertBefore(newP, anchorNode);
+                pTarget.parentNode.insertBefore(newP, pTarget);
               });
             }
           }
@@ -1600,14 +1600,12 @@
 
       try {
         const blob = await buildModifiedDocxBlob();
-        // inWrapper: true genera exactamente una <section class="docx"> por cada página real del Word
         await docx.renderAsync(blob, renderTarget, null, {
           inWrapper: true,
           ignoreWidth: false,
           breakPages: true
         });
 
-        // Esperar a que imágenes (escudo UNAL) y estilos de tabla terminen de renderizar
         await new Promise(resolve => setTimeout(resolve, 600));
 
         const sections = Array.from(renderTarget.querySelectorAll('section.docx'));
@@ -1615,8 +1613,6 @@
           throw new Error('No se pudieron renderizar las páginas del documento.');
         }
 
-        // Obtener el constructor jsPDF y html2canvas incluidos dentro de html2pdf
-        const worker = html2pdf();
         const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         const h2c = window.html2canvas;
 
@@ -1627,7 +1623,6 @@
         let pdf = null;
         for (let i = 0; i < sections.length; i++) {
           const sec = sections[i];
-          // Quitar sombras/márgenes externos de vista previa antes de fotografiar la página
           sec.style.boxShadow = 'none';
           sec.style.margin = '0';
 
