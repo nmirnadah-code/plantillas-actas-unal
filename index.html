@@ -157,18 +157,8 @@
         isAnticipada: false,
         isNoEjecutada: false
       },
-      anticipada_sin_saldo: {
-        code: 'TERMINACIÓN ANTICIPADA • CASO 5 • Sin Saldo a Anular y Sin Saldo a Favor',
-        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Sin Saldos Pendientes',
-        alcance: 'Terminación anticipada acordada entre las partes donde el valor ejecutado y pagado cubre el 100% del presupuesto asignado.',
-        url: `${GITHUB_BASE}/anticipada_sin_saldo.docx`,
-        hasSaldoAnular: false,
-        hasSaldoFavor: false,
-        isAnticipada: true,
-        isNoEjecutada: false
-      },
       anticipado_sin_anular_con_favor: {
-        code: 'TERMINACIÓN ANTICIPADA • CASO 6 • Sin Saldo a Anular y Con Saldo a Favor',
+        code: 'TERMINACIÓN ANTICIPADA • CASO 5 • Sin Saldo a Anular y Con Saldo a Favor',
         title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Sin Saldo para Anular y con Saldo a Favor del Contratista',
         alcance: 'Terminación anticipada acordada entre las partes donde se ejecutó el 100% del presupuesto, quedando un valor causado pendiente por desembolsar al contratista (casilla 4 > $0).',
         url: `${GITHUB_BASE}/anticipado_sin_anular_con_favor.docx`,
@@ -178,7 +168,7 @@
         isNoEjecutada: false
       },
       anticipado_con_anular_sin_favor: {
-        code: 'TERMINACIÓN ANTICIPADA • CASO 7 • Con Saldo a Anular y Sin Saldo a Favor',
+        code: 'TERMINACIÓN ANTICIPADA • CASO 6 • Con Saldo a Anular y Sin Saldo a Favor',
         title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Con Saldo para Anular y sin Saldo a Favor del Contratista',
         alcance: 'Terminación anticipada acordada entre las partes donde ya se pagó todo lo ejecutado (casilla 4 = $0), quedando un remanente sin ejecutar que debe anularse.',
         url: `${GITHUB_BASE}/anticipado_con_anular_sin_favor.docx`,
@@ -188,7 +178,7 @@
         isNoEjecutada: false
       },
       anticipado_con_anular_con_favor: {
-        code: 'TERMINACIÓN ANTICIPADA • CASO 8 • Con Saldo a Anular y Con Saldo a Favor',
+        code: 'TERMINACIÓN ANTICIPADA • CASO 7 • Con Saldo a Anular y Con Saldo a Favor',
         title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Con Saldo para Anular y con Saldo a Favor del Contratista',
         alcance: 'Terminación anticipada acordada entre las partes con un valor pendiente por cancelar al contratista (casilla 4 > $0) y simultáneamente un remanente sin ejecutar para anular.',
         url: `${GITHUB_BASE}/anticipado_con_anular_con_favor.docx`,
@@ -198,7 +188,7 @@
         isNoEjecutada: false
       },
       no_ejecutada: {
-        code: 'ORDEN NO EJECUTADA • CASO 9 • Mutuo Acuerdo • Anulación Total (100%)',
+        code: 'ORDEN NO EJECUTADA • CASO 8 • Mutuo Acuerdo • Anulación Total (100%)',
         title: 'Acta de Liquidación de Mutuo Acuerdo de Orden Contractual No Ejecutada',
         alcance: 'Orden contractual que nunca inició ejecución física ni financiera ($0 ejecutado y $0 pagado); se ordena la anulación del 100% del compromiso presupuestal.',
         url: `${GITHUB_BASE}/Mutuo_No_Ejecutada.docx`,
@@ -313,10 +303,9 @@
       saldos_anticipada: {
         stepNum: 3,
         totalSteps: 3,
-        question: '¿Qué situación financiera se presenta en la terminación anticipada?',
-        help: 'Selecciona si quedan saldos sin ejecutar para anular y/o saldos pendientes por pagar al contratista.',
+        question: '¿Qué tipo de saldo se presenta en la terminación anticipada?',
+        help: 'Selecciona la combinación exacta entre Saldo sin ejecutar (para anular) y Saldo pendiente por pagar (a favor del contratista).',
         options: [
-          { label: 'Sin saldos (100% ejecutado y pagado)', chip: 'Anticipada Sin Saldos', desc: 'El valor ejecutado y pagado cubre la totalidad del presupuesto.', templateKey: 'anticipada_sin_saldo' },
           { label: 'Solo saldo sin ejecutar para anular', chip: 'Anticipada + Saldo a Anular', desc: 'Ya se pagó todo lo ejecutado; queda remanente sin ejecutar para anular.', templateKey: 'anticipado_con_anular_sin_favor' },
           { label: 'Solo saldo a favor del contratista', chip: 'Anticipada + Saldo a Favor', desc: 'Se ejecutó el 100% del presupuesto, pero queda un pago pendiente al contratista.', templateKey: 'anticipado_sin_anular_con_favor' },
           { label: 'Saldo para anular y saldo a favor del contratista', chip: 'Anticipada + Anular + Favor', desc: 'Queda un valor pendiente por pagar al contratista y un valor sin ejecutar para anular.', templateKey: 'anticipado_con_anular_con_favor' }
