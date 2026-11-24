@@ -103,7 +103,7 @@
       <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
         <p><strong>1. Vista previa libre:</strong> Puedes revisar cómo va quedando el documento en cualquier momento sin bloqueos.</p>
         <p><strong>2. Validación al exportar:</strong> Al descargar en Word (.docx), el sistema verifica que no falten campos obligatorios y que el balance coincida con el caso seleccionado.</p>
-        <p><strong>3. Estilo editorial automático:</strong> Nombres y firmas se exportan en MAYÚSCULAS y NEGRITA, mientras que los textos de justificación y considerandos se normalizan tipo oración. Para convertir a PDF con fidelidad institucional, guarda directamente desde Microsoft Word.</p>
+        <p><strong>3. Estilo editorial automático:</strong> Nombres y firmas se exportan en MAYÚSCULAS y NEGRITA, mientras que los textos de motivación, justificación y considerandos se normalizan tipo oración. Para convertir a PDF con fidelidad institucional, guarda directamente desde Microsoft Word.</p>
       </div>
       <div class="text-right pt-2">
         <button onclick="toggleModal(false)" class="px-4 py-2 rounded-lg unal-navy text-white text-xs font-bold">Entendido</button>
@@ -138,7 +138,7 @@
         isNoEjecutada: false
       },
       mutuo_con_anular_sin_favor: {
-        code: 'MUTUO ACUERDO • CASO 3 • Ejecutado • Terminación Ordinaria • Saldo a Anular (S)',
+        code: 'MUTUO ACUERDO • CASO 3 • Ejecutado • Terminación Ordinaria • Saldo a Anular',
         title: 'Acta de Liquidación Mutuo Acuerdo: Con Saldo para Anular y sin Saldo a Favor del Contratista',
         alcance: 'Orden finalizada donde ya se pagó todo lo ejecutado (casilla 4 = $0), pero existe un remanente sin ejecutar que debe anularse presupuestalmente.',
         url: `${GITHUB_BASE}/mutuo_con_anular_sin_favor.docx`,
@@ -158,30 +158,50 @@
         isNoEjecutada: false
       },
       anticipada_sin_saldo: {
-        code: 'TERMINACIÓN ANTICIPADA • CASO 5 • Sin Saldo a Anular',
-        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Sin Saldo para Anular',
-        alcance: 'Terminación anticipada acordada entre las partes donde el valor ejecutado cubre la totalidad del presupuesto asignado.',
+        code: 'TERMINACIÓN ANTICIPADA • CASO 5 • Sin Saldo a Anular y Sin Saldo a Favor',
+        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Sin Saldos Pendientes',
+        alcance: 'Terminación anticipada acordada entre las partes donde el valor ejecutado y pagado cubre el 100% del presupuesto asignado.',
         url: `${GITHUB_BASE}/anticipada_sin_saldo.docx`,
         hasSaldoAnular: false,
         hasSaldoFavor: false,
         isAnticipada: true,
         isNoEjecutada: false
       },
-      anticipada_con_saldo: {
-        code: 'TERMINACIÓN ANTICIPADA • CASO 6 • Con Saldo a Anular',
-        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Con Saldo a Anular',
-        alcance: 'Terminación anticipada acordada entre las partes que genera un remanente presupuestal sin ejecutar que debe ser anulado.',
-        url: `${GITHUB_BASE}/anticipada_con_saldo.docx`,
+      anticipado_sin_anular_con_favor: {
+        code: 'TERMINACIÓN ANTICIPADA • CASO 6 • Sin Saldo a Anular y Con Saldo a Favor',
+        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Sin Saldo para Anular y con Saldo a Favor del Contratista',
+        alcance: 'Terminación anticipada acordada entre las partes donde se ejecutó el 100% del presupuesto, quedando un valor causado pendiente por desembolsar al contratista (casilla 4 > $0).',
+        url: `${GITHUB_BASE}/anticipado_sin_anular_con_favor.docx`,
+        hasSaldoAnular: false,
+        hasSaldoFavor: true,
+        isAnticipada: true,
+        isNoEjecutada: false
+      },
+      anticipado_con_anular_sin_favor: {
+        code: 'TERMINACIÓN ANTICIPADA • CASO 7 • Con Saldo a Anular y Sin Saldo a Favor',
+        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Con Saldo para Anular y sin Saldo a Favor del Contratista',
+        alcance: 'Terminación anticipada acordada entre las partes donde ya se pagó todo lo ejecutado (casilla 4 = $0), quedando un remanente sin ejecutar que debe anularse.',
+        url: `${GITHUB_BASE}/anticipado_con_anular_sin_favor.docx`,
         hasSaldoAnular: true,
         hasSaldoFavor: false,
         isAnticipada: true,
         isNoEjecutada: false
       },
+      anticipado_con_anular_con_favor: {
+        code: 'TERMINACIÓN ANTICIPADA • CASO 8 • Con Saldo a Anular y Con Saldo a Favor',
+        title: 'Acta de Liquidación Anticipada de Mutuo Acuerdo: Con Saldo para Anular y con Saldo a Favor del Contratista',
+        alcance: 'Terminación anticipada acordada entre las partes con un valor pendiente por cancelar al contratista (casilla 4 > $0) y simultáneamente un remanente sin ejecutar para anular.',
+        url: `${GITHUB_BASE}/anticipado_con_anular_con_favor.docx`,
+        hasSaldoAnular: true,
+        hasSaldoFavor: true,
+        isAnticipada: true,
+        isNoEjecutada: false
+      },
       no_ejecutada: {
-        code: 'ORDEN NO EJECUTADA • CASO 7 • Anulación Total (100%)',
-        title: 'Acta de Liquidación de Orden Contractual No Ejecutada',
-        alcance: 'Orden contractual que nunca inició ejecución física ni financiera; se ordena la anulación del 100% del compromiso presupuestal.',
-        url: `${GITHUB_BASE}/no_ejecutada.docx`,
+        code: 'ORDEN NO EJECUTADA • CASO 9 • Mutuo Acuerdo • Anulación Total (100%)',
+        title: 'Acta de Liquidación de Mutuo Acuerdo de Orden Contractual No Ejecutada',
+        alcance: 'Orden contractual que nunca inició ejecución física ni financiera ($0 ejecutado y $0 pagado); se ordena la anulación del 100% del compromiso presupuestal.',
+        url: `${GITHUB_BASE}/Mutuo_No_Ejecutada.docx`,
         hasSaldoAnular: true,
         hasSaldoFavor: false,
         isAnticipada: false,
@@ -241,7 +261,8 @@
         considerandosExtra: [],
         justificacionSaldo: '',
         fechaAnticipada: '',
-        motivoAnticipada: ''
+        motivoAnticipada: '',
+        motivoNoEjecutada: ''
       }
     });
 
@@ -281,7 +302,7 @@
       detalle_saldos: {
         stepNum: 4,
         totalSteps: 4,
-        question: '¿Qué tipo de saldo se presenta en la liquidación?',
+        question: '¿Qué tipo de saldo se presenta en la liquidación ordinaria?',
         help: 'Selecciona la combinación exacta entre Saldo sin ejecutar (para anular) y Saldo pendiente por pagar (a favor del contratista).',
         options: [
           { label: 'Solo saldo sin ejecutar para anular', chip: 'Solo Saldo a Anular', desc: 'Ya se pagó todo lo ejecutado; solo se anula el saldo no ejecutado.', templateKey: 'mutuo_con_anular_sin_favor' },
@@ -292,11 +313,13 @@
       saldos_anticipada: {
         stepNum: 3,
         totalSteps: 3,
-        question: 'En la terminación anticipada, ¿queda saldo sin ejecutar para anular?',
-        help: 'Indica si existe valor presupuestal no ejecutado que deba ser liberado/anulado.',
+        question: '¿Qué situación financiera se presenta en la terminación anticipada?',
+        help: 'Selecciona si quedan saldos sin ejecutar para anular y/o saldos pendientes por pagar al contratista.',
         options: [
-          { label: 'Con saldo para anular', chip: 'Con Saldo a Anular', desc: 'Queda un valor sin ejecutar producto de la terminación anticipada.', templateKey: 'anticipada_con_saldo' },
-          { label: 'Sin saldo para anular', chip: 'Sin Saldo a Anular', desc: 'El valor ejecutado cubre la totalidad del presupuesto.', templateKey: 'anticipada_sin_saldo' }
+          { label: 'Sin saldos (100% ejecutado y pagado)', chip: 'Anticipada Sin Saldos', desc: 'El valor ejecutado y pagado cubre la totalidad del presupuesto.', templateKey: 'anticipada_sin_saldo' },
+          { label: 'Solo saldo sin ejecutar para anular', chip: 'Anticipada + Saldo a Anular', desc: 'Ya se pagó todo lo ejecutado; queda remanente sin ejecutar para anular.', templateKey: 'anticipado_con_anular_sin_favor' },
+          { label: 'Solo saldo a favor del contratista', chip: 'Anticipada + Saldo a Favor', desc: 'Se ejecutó el 100% del presupuesto, pero queda un pago pendiente al contratista.', templateKey: 'anticipado_sin_anular_con_favor' },
+          { label: 'Saldo para anular y saldo a favor del contratista', chip: 'Anticipada + Anular + Favor', desc: 'Queda un valor pendiente por pagar al contratista y un valor sin ejecutar para anular.', templateKey: 'anticipado_con_anular_con_favor' }
         ]
       }
     };
@@ -477,13 +500,17 @@
         errs.push('Marcaste "Incluir cuadro de Garantías / Pólizas", pero falta el nombre de la Compañía Aseguradora.');
       }
 
-      if (tpl.hasSaldoAnular && !f.justificacionSaldo.trim()) {
+      if (!tpl.isAnticipada && !tpl.isNoEjecutada && tpl.hasSaldoAnular && !f.justificacionSaldo.trim()) {
         errs.push('Falta la Justificación del Saldo sin Ejecutar (obligatoria cuando hay saldo para anular).');
       }
 
       if (tpl.isAnticipada) {
-        if (!f.fechaAnticipada) errs.push('Falta la Fecha de Terminación Anticipada.');
-        if (!f.motivoAnticipada.trim()) errs.push('Falta el Motivo de la Terminación Anticipada.');
+        if (!f.fechaAnticipada) errs.push('Falta la Fecha a partir de la cual surte efectos la Terminación Anticipada.');
+        if (!f.motivoAnticipada.trim()) errs.push('Falta la Motivación de la Terminación Anticipada (y justificación del saldo si aplica).');
+      }
+
+      if (tpl.isNoEjecutada && !f.motivoNoEjecutada.trim()) {
+        errs.push('Falta la Motivación detallada por la cual no se ejecutó la orden contractual.');
       }
 
       const vIni = Number(f.valorInicial) || 0;
@@ -496,6 +523,10 @@
 
       if (vAnu < 0) {
         errs.push(`Descuadre financiero: El total ejecutado ($${vEje.toLocaleString('es-CO')}) supera el valor total del contrato ($${vTot.toLocaleString('es-CO')}).`);
+      }
+
+      if (tpl.isNoEjecutada && vEje > 0) {
+        errs.push(`Incoherencia con Orden No Ejecutada: En una orden no ejecutada tanto el "Valor pagado a la fecha (3)" como "Causado sin pagar (4)" deben ser $0 (actualmente suman $${vEje.toLocaleString('es-CO')}).`);
       }
 
       if (tpl.hasSaldoAnular && vAnu <= 0) {
@@ -933,26 +964,40 @@
                   `).join('')}
                 </div>
 
-                <!-- JUSTIFICACIÓN OBLIGATORIA DEL SALDO (SI APLICA) -->
-                ${tpl.hasSaldoAnular ? `
+                <!-- JUSTIFICACIÓN OBLIGATORIA DEL SALDO (ORDINARIA CON SALDO A ANULAR) -->
+                ${!tpl.isAnticipada && !tpl.isNoEjecutada && tpl.hasSaldoAnular ? `
                   <div class="bg-[#fffbeb] border border-[#f59e0b]/60 rounded-xl p-4 space-y-2">
-                    <label class="block text-xs font-bold text-[#92400e]">Justificación del Saldo sin Ejecutar / Observación Financiera (Considerando 4) *</label>
+                    <label class="block text-xs font-bold text-[#92400e]">Justificación del Saldo sin Ejecutar / Observación Financiera *</label>
                     <input type="text" placeholder="Ej: no se requirieron la totalidad de los bienes/servicios inicialmente estimados dentro del proyecto"
                       value="${escAttr(f.justificacionSaldo)}" oninput="fUpdate('justificacionSaldo', this.value)"
                       class="w-full border border-[#f59e0b]/60 bg-white rounded-lg px-3 py-2 text-sm">
                   </div>
                 ` : ''}
 
+                <!-- CAMPOS ESPECÍFICOS DE TERMINACIÓN ANTICIPADA -->
                 ${tpl.isAnticipada ? `
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <div>
-                      <label class="block text-xs font-bold text-slate-700 mb-1">Fecha de terminación anticipada *</label>
-                      <input type="date" value="${escAttr(f.fechaAnticipada)}" oninput="fUpdate('fechaAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                  <div class="bg-[#fffbeb] border border-[#f59e0b]/60 rounded-xl p-4 space-y-3">
+                    <div class="text-xs font-bold text-[#92400e] uppercase">Sustento de Terminación Anticipada de Mutuo Acuerdo</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                      <div class="sm:col-span-4">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Efectos a partir de (Fecha) *</label>
+                        <input type="date" value="${escAttr(f.fechaAnticipada)}" oninput="fUpdate('fechaAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                      </div>
+                      <div class="sm:col-span-8">
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Motivación, soporte documental y justificación del saldo (si aplica) *</label>
+                        <textarea rows="2" placeholder="Ej: mediante oficio del 15 de octubre de 2026 el contratista solicitó la terminación anticipada por motivos personales, quedando un saldo sin ejecutar que se anula..."
+                          oninput="fUpdate('motivoAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">${escHtml(f.motivoAnticipada)}</textarea>
+                      </div>
                     </div>
-                    <div>
-                      <label class="block text-xs font-bold text-slate-700 mb-1">Motivo de la terminación anticipada *</label>
-                      <input type="text" value="${escAttr(f.motivoAnticipada)}" oninput="fUpdate('motivoAnticipada', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
-                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- CAMPOS ESPECÍFICOS DE ORDEN NO EJECUTADA -->
+                ${tpl.isNoEjecutada ? `
+                  <div class="bg-[#fffbeb] border border-[#f59e0b]/60 rounded-xl p-4 space-y-2">
+                    <label class="block text-xs font-bold text-[#92400e]">Motivación detallada de no ejecución, soporte documental y justificación de anulación *</label>
+                    <textarea rows="3" placeholder="Ej: mediante comunicación escrita del supervisor y el contratista de fecha..., se informó que no fue posible iniciar actividades debido a..., por lo cual se procede a anular la totalidad del registro presupuestal..."
+                      oninput="fUpdate('motivoNoEjecutada', this.value)" class="w-full border border-[#f59e0b]/60 bg-white rounded-lg px-3 py-2 text-sm">${escHtml(f.motivoNoEjecutada)}</textarea>
                   </div>
                 ` : ''}
               </div>
@@ -1067,6 +1112,9 @@
         if (vAnu < 0) {
           badge.innerText = '⛔ Descuadre: Ejecutado supera Total';
           badge.className = 'text-[11px] font-bold px-3 py-1 rounded-full bg-red-100 text-red-800';
+        } else if (tpl.isNoEjecutada && vEje > 0) {
+          badge.innerText = '⚠️ Orden No Ejecutada debe tener $0 ejecutado';
+          badge.className = 'text-[11px] font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800';
         } else if ((tpl.hasSaldoAnular && vAnu <= 0) || (!tpl.hasSaldoAnular && vAnu > 0) || (tpl.hasSaldoFavor && vPen <= 0) || (!tpl.hasSaldoFavor && vPen > 0)) {
           badge.innerText = '⚠️ Saldos no coinciden con el Caso elegido';
           badge.className = 'text-[11px] font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800';
@@ -1283,6 +1331,8 @@
       const contratistaHeader = f.tipoPersona === 'juridica' ? empresaUpper : contratistaUpper;
 
       const justifNormalizada = normalizeSentenceCase(f.justificacionSaldo, false) || 'el valor no ejecutado durante el plazo contractual';
+      const motivoAnticipadaNorm = normalizeSentenceCase(f.motivoAnticipada, false) || 'acuerdo mutuo entre las partes';
+      const motivoNoEjecNorm = normalizeSentenceCase(f.motivoNoEjecutada, false) || 'no se inició la ejecución del objeto contractual';
 
       const clausulaContratista = f.tipoPersona === 'juridica'
         ? `${contratistaUpper}, ${identWord} con cédula de ciudadanía ${f.identificacion || '___'} expedida en ${f.ciudadExpedicion || 'Bogotá D.C.'}, en su calidad de representante legal de la empresa ${empresaUpper}, identificada con NIT ${f.empresaNit || '___'}, según certificado de existencia y representación legal expedido por la Cámara de Comercio`
@@ -1302,15 +1352,23 @@
         ['$ Valor Inicial', fmt(vIni)],
         ['$ Valor Total', fmt(vTot)],
         ['$ Valor por anular', fmt(vAnu)],
+        ['$ Saldo por anular', fmt(vAnu)],
         ['$ Valor que se le debe a contratista', fmt(vPen)],
+        ['(incluir motivación de la terminación anticipada y soporte documental, así como indicar si queda saldo sin ejecutar por anular y su justificación)', motivoAnticipadaNorm],
+        ['(incluir motivación detallada por la cual no se ejecutó la orden contractual, soporte documental y justificación del saldo sin ejecutar que se anula)', motivoNoEjecNorm],
+        ['con efectos a partir del (día) de (mes) de (año)', `con efectos a partir del ${formatDateLong(f.fechaAnticipada)}`],
         ['(indicar brevemente el motivo del saldo sin ejecutar.)', `${justifNormalizada}.`],
         ['(indicar brevemente el motivo del saldo sin ejecutar)', justifNormalizada],
         ['indicar brevemente el motivo del saldo sin ejecutar', justifNormalizada],
         ['(indicar brevemente si aplica o si necesita alguna justificación, en caso de no aplicar se puede borrar todo el párrafo)', justifNormalizada],
         ['El interventor/supervisor', `${artRol.charAt(0).toUpperCase() + artRol.slice(1)} ${rolLower}`],
         ['el interventor/supervisor', `${artRol} ${rolLower}`],
+        ['El Supervisor de la orden contractual', `${artRol.charAt(0).toUpperCase() + artRol.slice(1)} ${rolLower} de la orden contractual`],
+        ['el supervisor/interventor', `${artRol} ${rolLower}`],
         ['y el supervisor', `y ${artRol} ${rolLower}`],
         ['día de mes de 202X. (Nota: Debe ser posterior al último pago registrado en la ORPA, si aplica).', `${formatDateLong(f.fechaFirma)}.`],
+        ['el (día) de (mes) de 202X. (Nota: Debe ser Posterior a la fecha de terminación prevista en la justificación y posterior al último pago registrado en la ORPA, si aplica).', `el ${formatDateLong(f.fechaFirma)}.`],
+        ['el (día) de (mes) de 202X. (Nota: Debe ser posterior al último pago registrado en la ORPA, si aplica).', `el ${formatDateLong(f.fechaFirma)}.`],
         ['Nombre del contratista o Rep. Legal', contratistaUpper, true],
         ['(CONTRATISTA O REPRESENTANTE LEGAL)', f.tipoPersona === 'juridica' ? 'REPRESENTANTE LEGAL' : 'CONTRATISTA'],
         ['( CONTRATISTA O REPRESENTANTE LEGAL)', f.tipoPersona === 'juridica' ? 'REPRESENTANTE LEGAL' : 'CONTRATISTA'],
@@ -1350,7 +1408,9 @@
 
           if (extras.length > 0) {
             const allPs = Array.from(xmlDoc.getElementsByTagNameNS(ns, 'p'));
-            const pTarget = allPs.find(p => p.textContent.toUpperCase().includes('EN CUMPLIMIENTO DE LAS FUNCIONES ASIGNADAS POR EL MANUAL'))
+            const pTarget = allPs.find(p => p.textContent.toUpperCase().includes('REQUIERE QUE SE DÉ POR TERMINADA Y LIQUIDADA DE MANERA ANTICIPADA'))
+                         || allPs.find(p => p.textContent.toUpperCase().includes('INFORMA QUE LA CITADA ORDEN CONTRACTUAL NO FUE EJECUTADA'))
+                         || allPs.find(p => p.textContent.toUpperCase().includes('EN CUMPLIMIENTO DE LAS FUNCIONES ASIGNADAS POR EL MANUAL'))
                          || allPs.find(p => p.textContent.toUpperCase().includes('RECOMIENDA AL ORDENADOR DEL GASTO'));
 
             if (pTarget && pTarget.parentNode) {
@@ -1387,7 +1447,6 @@
 
                 pTarget.parentNode.insertBefore(newP, pTarget);
 
-                // Párrafo separador en blanco después del considerando agregado
                 const spacerP = xmlDoc.createElementNS(ns, 'w:p');
                 const spacerPPr = xmlDoc.createElementNS(ns, 'w:pPr');
                 const spacerSpacing = xmlDoc.createElementNS(ns, 'w:spacing');
