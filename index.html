@@ -56,12 +56,15 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2.5">
+      <div class="flex flex-wrap items-center gap-2.5">
+        <span id="autosave-indicator" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-emerald-950/70 text-emerald-300 border border-emerald-700/50">
+          💾 Autoguardado local activo
+        </span>
         <button onclick="toggleModal(true)" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#293829] hover:bg-[#344734] text-[#b4dc5e] border border-[#84a938]/40 transition flex items-center gap-1.5">
           <span>🎓</span> ¿Cómo funciona?
         </button>
-        <button onclick="resetWizard()" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-700/70 hover:bg-slate-600 text-slate-200 border border-slate-600 transition flex items-center gap-1.5">
-          <span>↺</span> Reiniciar diagnóstico
+        <button onclick="confirmClearAllData()" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-rose-950/80 hover:bg-rose-900 text-rose-200 border border-rose-700/60 transition flex items-center gap-1.5">
+          <span>🗑</span> Borrar datos y reiniciar
         </button>
       </div>
     </div>
@@ -101,9 +104,10 @@
         <button onclick="toggleModal(false)" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
       </div>
       <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
-        <p><strong>1. Vista previa libre:</strong> Puedes revisar cómo va quedando el documento en cualquier momento sin bloqueos.</p>
-        <p><strong>2. Validación al exportar:</strong> Al descargar en Word (.docx), el sistema verifica que no falten campos obligatorios y que el balance coincida con el caso seleccionado.</p>
-        <p><strong>3. Estilo editorial automático:</strong> Nombres y firmas se exportan en MAYÚSCULAS y NEGRITA, mientras que los textos de motivación, justificación y considerandos se normalizan tipo oración. Para convertir a PDF con fidelidad institucional, guarda directamente desde Microsoft Word.</p>
+        <p><strong>1. Empresa 2018 vs. 2068 (UGI):</strong> Si eliges Empresa <strong>2068</strong>, el sistema antepone automáticamente <strong>UGI</strong> antes del número de la orden en todo el documento (ej. <em>OCO No. UGI 7 de 2024</em>).</p>
+        <p><strong>2. Cálculo automático de plazos:</strong> Al elegir Fecha Inicio y Fecha Terminación se calcula el Plazo Inicial. Si agregas prórrogas y los días no cuadran, verás una alerta con la fecha sugerida para actualizarla con un clic.</p>
+        <p><strong>3. Guardado automático local:</strong> Tu progreso se guarda en este navegador para evitar pérdidas si se recarga la página o falla el internet. Usa el botón <strong>"Borrar datos y reiniciar"</strong> cuando termines de generar el acta.</p>
+        <p><strong>4. Estilo editorial automático:</strong> Nombres y firmas se exportan en MAYÚSCULAS y NEGRITA, mientras que los textos de motivación, justificación y considerandos se normalizan tipo oración.</p>
       </div>
       <div class="text-right pt-2">
         <button onclick="toggleModal(false)" class="px-4 py-2 rounded-lg unal-navy text-white text-xs font-bold">Entendido</button>
@@ -113,6 +117,7 @@
 
   <script>
     const GITHUB_BASE = '.';
+    const STORAGE_KEY = 'unal_actas_liquidacion_borrador_v2';
     const MAX_ORPA_ROWS = 11;
     const MAX_GARANTIA_ROWS = 7;
 
@@ -219,6 +224,7 @@
       selectedTemplateKey: null,
       validationErrors: [],
       form: {
+        codigoEmpresa: '2018',
         sigla: 'OPS',
         numero: '',
         anio: '2026',
@@ -256,7 +262,51 @@
       }
     });
 
-    let state = initialState();
+    function loadSavedState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return initialState();
+        const parsed = JSON.parse(raw);
+        const base = initialState();
+        return {
+          ...base,
+          ...parsed,
+          validationErrors: [],
+          form: {
+            ...base.form,
+            ...(parsed.form || {})
+          }
+        };
+      } catch (e) {
+        return initialState();
+      }
+    }
+
+    let saveTimer = null;
+    function saveStateToStorage() {
+      try {
+        const toSave = {
+          currentNodeId: state.currentNodeId,
+          history: state.history,
+          breadcrumbs: state.breadcrumbs,
+          selectedTemplateKey: state.selectedTemplateKey,
+          form: state.form
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+        const ind = document.getElementById('autosave-indicator');
+        if (ind) {
+          ind.textContent = '💾 Guardado en este equipo';
+          clearTimeout(saveTimer);
+          saveTimer = setTimeout(() => {
+            ind.textContent = '💾 Autoguardado local activo';
+          }, 1500);
+        }
+      } catch (e) {
+        console.warn('No se pudo guardar en localStorage:', e);
+      }
+    }
+
+    let state = loadSavedState();
 
     const DECISION_NODES = {
       ejecucion: {
@@ -369,6 +419,7 @@
       const formatted = formatNitColombiano(el.value);
       el.value = formatted;
       state.form.empresaNit = formatted;
+      saveStateToStorage();
     }
 
     function formatCurrencyInput(num) {
@@ -386,12 +437,14 @@
       const formatted = formatDotsOnly(el.value);
       el.value = formatted;
       state.form[fieldKey] = formatted;
+      saveStateToStorage();
     }
 
     function handleMoneyInput(el, fieldKey) {
       const num = parseMoney(el.value);
       state.form[fieldKey] = num;
       el.value = num ? '$ ' + num.toLocaleString('es-CO') : '';
+      saveStateToStorage();
       calcAll();
     }
 
@@ -399,6 +452,7 @@
       const num = parseMoney(el.value);
       state.form.pagos[idx].valor = num;
       el.value = num ? '$ ' + num.toLocaleString('es-CO') : '';
+      saveStateToStorage();
       calcAll();
     }
 
@@ -406,10 +460,12 @@
       const num = parseMoney(el.value);
       state.form.garantias[idx].valor = num;
       el.value = num ? '$ ' + num.toLocaleString('es-CO') : '';
+      saveStateToStorage();
     }
 
     function handleFechaFirmaChange(val) {
       state.form.fechaFirma = val;
+      saveStateToStorage();
       const esNuevaDecana = !val || val >= '2026-10-01';
       const decanaNombre = esNuevaDecana ? 'LIBIA DENISE CANGREJO ALJURE' : 'SONIA ESPERANZA MONROY VARELA';
       const card = document.getElementById('decana-info-text');
@@ -418,11 +474,83 @@
       }
     }
 
+    // CÁLCULO DE DÍAS INCLUSIVE ENTRE FECHAS Y SUGERENCIA DE FECHA FIN
+    function diffDaysInclusive(isoStart, isoEnd) {
+      if (!isoStart || !isoEnd) return null;
+      const [y1, m1, d1] = isoStart.split('-').map(Number);
+      const [y2, m2, d2] = isoEnd.split('-').map(Number);
+      const utc1 = Date.UTC(y1, m1 - 1, d1);
+      const utc2 = Date.UTC(y2, m2 - 1, d2);
+      const diff = Math.round((utc2 - utc1) / 86400000) + 1;
+      return diff;
+    }
+
+    function addDaysToIso(isoStart, totalDaysInclusive) {
+      if (!isoStart || !totalDaysInclusive || totalDaysInclusive < 1) return '';
+      const [y, m, d] = isoStart.split('-').map(Number);
+      const dt = new Date(Date.UTC(y, m - 1, d + (totalDaysInclusive - 1)));
+      const yy = dt.getUTCFullYear();
+      const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getUTCDate()).padStart(2, '0');
+      return `${yy}-${mm}-${dd}`;
+    }
+
+    function handleContratoFechaChange(fieldKey, val) {
+      state.form[fieldKey] = val;
+      const f = state.form;
+      if (f.fechaInicio && f.fechaTerminacion) {
+        const diasCalendario = diffDaysInclusive(f.fechaInicio, f.fechaTerminacion);
+        const pPro = f.prorrogas.reduce((a, b) => a + (Number(b) || 0), 0);
+        const pSus = f.suspensiones.reduce((a, b) => a + (Number(b) || 0), 0);
+        // Si no hay prórrogas ni suspensiones aún (o si el plazo inicial estaba vacío), autocompletamos Plazo Inicial
+        if (diasCalendario > 0 && (pPro === 0 && pSus === 0 || !f.plazoInicial)) {
+          f.plazoInicial = String(diasCalendario);
+          const inpPlazo = document.getElementById('inp-plazo-inicial');
+          if (inpPlazo) inpPlazo.value = f.plazoInicial;
+        }
+      }
+      saveStateToStorage();
+      calcAll();
+    }
+
+    function aplicarFechaSugerida(isoSugerida) {
+      state.form.fechaTerminacion = isoSugerida;
+      const inpFin = document.getElementById('inp-fecha-terminacion');
+      if (inpFin) inpFin.value = isoSugerida;
+      saveStateToStorage();
+      calcAll();
+    }
+
+    function getFormattedOrderNumber() {
+      const f = state.form;
+      const rawNum = String(f.numero || '').trim().replace(/^UGI\s+/i, '');
+      if (!rawNum) return '';
+      return f.codigoEmpresa === '2068' ? `UGI ${rawNum}` : rawNum;
+    }
+
+    function updateOrdenPreviewBadge() {
+      const badge = document.getElementById('orden-preview-badge');
+      if (!badge) return;
+      const f = state.form;
+      const numFormatted = getFormattedOrderNumber() || '___';
+      badge.innerHTML = `Vista previa en documento: <strong>${escHtml(f.sigla)} No. ${escHtml(numFormatted)} de ${escHtml(f.anio || '2026')}</strong>`;
+    }
+
     function toggleModal(show) {
       document.getElementById('help-modal').classList.toggle('hidden', !show);
     }
 
-    function resetWizard() { state = initialState(); render(); }
+    function confirmClearAllData() {
+      if (confirm('¿Deseas borrar toda la información guardada del formulario y reiniciar el asistente desde cero?')) {
+        resetWizard();
+      }
+    }
+
+    function resetWizard() {
+      localStorage.removeItem(STORAGE_KEY);
+      state = initialState();
+      render();
+    }
 
     function jumpToBreadcrumb(index) {
       if (index < 0) { resetWizard(); return; }
@@ -432,6 +560,7 @@
       state.currentNodeId = target.nodeId;
       state.selectedTemplateKey = null;
       state.validationErrors = [];
+      saveStateToStorage();
       render();
     }
 
@@ -440,12 +569,14 @@
         state.selectedTemplateKey = null;
         state.validationErrors = [];
         state.breadcrumbs.pop();
+        saveStateToStorage();
         render();
         return;
       }
       if (state.history.length > 0) {
         state.currentNodeId = state.history.pop();
         state.breadcrumbs.pop();
+        saveStateToStorage();
         render();
       }
     }
@@ -458,6 +589,7 @@
         state.history.push(state.currentNodeId);
         state.currentNodeId = nextNodeId;
       }
+      saveStateToStorage();
       render();
     }
 
@@ -483,6 +615,22 @@
       if (!f.plazoInicial || Number(f.plazoInicial) <= 0) errs.push('Falta el Plazo Inicial (debe ser mayor a 0 días).');
       if (!f.fechaInicio) errs.push('Falta la Fecha de Inicio.');
       if (!f.fechaTerminacion) errs.push('Falta la Fecha de Terminación.');
+
+      if (f.fechaInicio && f.fechaTerminacion) {
+        const diasReales = diffDaysInclusive(f.fechaInicio, f.fechaTerminacion);
+        const pIni = Number(f.plazoInicial) || 0;
+        const pPro = f.prorrogas.reduce((a, b) => a + (Number(b) || 0), 0);
+        const pSus = f.suspensiones.reduce((a, b) => a + (Number(b) || 0), 0);
+        const pTot = pIni + pPro + pSus;
+
+        if (diasReales <= 0) {
+          errs.push('La Fecha de Terminación no puede ser anterior a la Fecha de Inicio.');
+        } else if (pTot > 0 && diasReales !== pTot) {
+          const fechaSug = addDaysToIso(f.fechaInicio, pTot);
+          errs.push(`Desfase en plazos y fechas: Entre el ${formatDateShort(f.fechaInicio)} y el ${formatDateShort(f.fechaTerminacion)} hay ${diasReales} días calendario, pero el Plazo Total (Inicial + Prórrogas + Suspensiones) suma ${pTot} días (fecha esperada: ${formatDateShort(fechaSug)}).`);
+        }
+      }
+
       if (!f.valorInicial || Number(f.valorInicial) <= 0) errs.push('Falta el Valor Inicial (debe ser mayor a $0).');
 
       if (f.tienePolizas && !f.aseguradora.trim()) {
@@ -562,7 +710,7 @@
             <div class="h-full unal-lime-bg transition-all duration-300" style="width: ${percent}%"></div>
           </div>
           <div class="flex flex-wrap items-center gap-1.5 text-xs">
-            <button onclick="resetWizard()" class="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold flex items-center gap-1">
+            <button onclick="jumpToBreadcrumb(-1)" class="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold flex items-center gap-1">
               🏠 Inicio
             </button>
             ${state.breadcrumbs.map((b, idx) => `
@@ -613,6 +761,7 @@
       const decanaNombre = esNuevaDecana ? 'LIBIA DENISE CANGREJO ALJURE' : 'SONIA ESPERANZA MONROY VARELA';
       const sobranPagos = Math.max(0, f.pagos.length - MAX_ORPA_ROWS);
       const sobranGarantias = f.tienePolizas ? Math.max(0, f.garantias.length - MAX_GARANTIA_ROWS) : 0;
+      const numFormatted = getFormattedOrderNumber() || '___';
 
       container.innerHTML = `
         <div class="w-full fade-in">
@@ -677,26 +826,39 @@
                   <span class="text-[11px] text-slate-400">Campos marcados con * son obligatorios al descargar</span>
                 </div>
 
-                <!-- FILA 1: TIPO, NÚMERO, AÑO, FECHA -->
+                <!-- FILA 1: EMPRESA (2018 / 2068), TIPO, NÚMERO, AÑO, FECHA -->
                 <div class="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
-                  <div class="sm:col-span-5">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo / Sigla de Orden Contractual *</label>
-                    <select onchange="fUpdate('sigla', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+                  <div class="sm:col-span-3">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Empresa *</label>
+                    <select onchange="fUpdate('codigoEmpresa', this.value); updateOrdenPreviewBadge();" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white font-semibold">
+                      <option value="2018" ${f.codigoEmpresa==='2018'?'selected':''}>2018 (Sin prefijo)</option>
+                      <option value="2068" ${f.codigoEmpresa==='2068'?'selected':''}>2068 (Agrega UGI)</option>
+                    </select>
+                  </div>
+                  <div class="sm:col-span-3">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo / Sigla de Orden *</label>
+                    <select onchange="fUpdate('sigla', this.value); updateOrdenPreviewBadge();" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
                       ${SIGLAS_CATALOG.map(s => `<option value="${s.code}" ${f.sigla===s.code?'selected':''}>${s.label}</option>`).join('')}
                     </select>
                   </div>
                   <div class="sm:col-span-2">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Número de Orden *</label>
-                    <input type="text" value="${escAttr(f.numero)}" placeholder="Ej: 64" oninput="fUpdate('numero', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="text" value="${escAttr(f.numero)}" placeholder="Ej: 7" oninput="fUpdate('numero', this.value); updateOrdenPreviewBadge();" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                   <div class="sm:col-span-2">
                     <label class="block text-xs font-bold text-slate-700 mb-1">Año *</label>
-                    <input type="text" value="${escAttr(f.anio)}" oninput="fUpdate('anio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="text" value="${escAttr(f.anio)}" oninput="fUpdate('anio', this.value); updateOrdenPreviewBadge();" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
-                  <div class="sm:col-span-3">
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Firma del Acta *</label>
-                    <input type="date" value="${escAttr(f.fechaFirma)}" onchange="handleFechaFirmaChange(this.value)" oninput="handleFechaFirmaChange(this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                  <div class="sm:col-span-2">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Firma Acta *</label>
+                    <input type="date" value="${escAttr(f.fechaFirma)}" onchange="handleFechaFirmaChange(this.value)" oninput="handleFechaFirmaChange(this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-sm">
                   </div>
+                </div>
+
+                <!-- INDICADOR VISUAL DE IDENTIFICACIÓN DE LA ORDEN -->
+                <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 border border-slate-200/80 rounded-lg px-3.5 py-2 text-xs text-slate-600">
+                  <span id="orden-preview-badge">Vista previa en documento: <strong>${escHtml(f.sigla)} No. ${escHtml(numFormatted)} de ${escHtml(f.anio || '2026')}</strong></span>
+                  <span class="text-[11px] text-slate-400">Empresa 2068 antepone automáticamente "UGI"</span>
                 </div>
 
                 <!-- AVISO VISIBLE SOBRE REGLA DE FECHA DE CORTE DE LA DECANA -->
@@ -784,7 +946,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Plazo Inicial (días) *</label>
-                    <input type="number" placeholder="Ej: 10" value="${escAttr(f.plazoInicial)}" oninput="fUpdate('plazoInicial', this.value); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input id="inp-plazo-inicial" type="number" placeholder="Auto con fechas" value="${escAttr(f.plazoInicial)}" oninput="fUpdate('plazoInicial', this.value); calcAll()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Plazo Total (días)</label>
@@ -792,13 +954,16 @@
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Inicio *</label>
-                    <input type="date" value="${escAttr(f.fechaInicio)}" oninput="fUpdate('fechaInicio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="date" value="${escAttr(f.fechaInicio)}" onchange="handleContratoFechaChange('fechaInicio', this.value)" oninput="handleContratoFechaChange('fechaInicio', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">Fecha Terminación *</label>
-                    <input type="date" value="${escAttr(f.fechaTerminacion)}" oninput="fUpdate('fechaTerminacion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                    <input id="inp-fecha-terminacion" type="date" value="${escAttr(f.fechaTerminacion)}" onchange="handleContratoFechaChange('fechaTerminacion', this.value)" oninput="handleContratoFechaChange('fechaTerminacion', this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
                   </div>
                 </div>
+
+                <!-- ALERTA DINÁMICA DE DESFASE EN FECHAS Y PRÓRROGAS -->
+                <div id="plazo-mismatch-alert" class="hidden"></div>
 
                 <!-- PRÓRROGAS Y SUSPENSIONES -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1042,8 +1207,8 @@
                 <button onclick="goBack()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
                   ← Modificar última respuesta
                 </button>
-                <button onclick="resetWizard()" class="px-4 py-2.5 rounded-xl bg-[#f1f6e4] hover:bg-[#e4efc9] text-[#4d661b] border border-[#84a938]/50 text-xs font-bold transition">
-                  ↺ Evaluar otro contrato
+                <button onclick="confirmClearAllData()" class="px-4 py-2.5 rounded-xl bg-[#f1f6e4] hover:bg-[#e4efc9] text-[#4d661b] border border-[#84a938]/50 text-xs font-bold transition">
+                  ↺ Limpiar formulario y evaluar otro contrato
                 </button>
               </div>
             </div>
@@ -1058,19 +1223,27 @@
       render();
     }
 
-    function fUpdate(key, val, rerender = false) { state.form[key] = val; if (rerender) render(); }
-    function updateArrNoJump(key, idx, val) { state.form[key][idx] = val; calcAll(); }
-    function addArr(key) { state.form[key].push(''); render(); }
-    function removeArr(key, idx) { state.form[key].splice(idx, 1); render(); }
-    function addGar() { state.form.garantias.push({ tipo: 'Inicial', numero: '', amparos: '', valor: 0, inicio: '', fin: '', aprobacion: '' }); render(); }
-    function removeGar(idx) { state.form.garantias.splice(idx, 1); render(); }
-    function updateGar(idx, k, v) { state.form.garantias[idx][k] = v; }
-    function addPago() { state.form.pagos.push({ orpa: '', fecha: '', valor: 0 }); render(); }
-    function removePago(idx) { state.form.pagos.splice(idx, 1); render(); }
-    function updatePago(idx, k, v) { state.form.pagos[idx][k] = v; }
-    function addConsiderando() { state.form.considerandosExtra.push(''); render(); }
-    function removeConsiderando(idx) { state.form.considerandosExtra.splice(idx, 1); render(); }
-    function updateConsiderando(idx, v) { state.form.considerandosExtra[idx] = v; }
+    function fUpdate(key, val, rerender = false) {
+      state.form[key] = val;
+      saveStateToStorage();
+      if (rerender) render();
+    }
+    function updateArrNoJump(key, idx, val) {
+      state.form[key][idx] = val;
+      saveStateToStorage();
+      calcAll();
+    }
+    function addArr(key) { state.form[key].push(''); saveStateToStorage(); render(); }
+    function removeArr(key, idx) { state.form[key].splice(idx, 1); saveStateToStorage(); render(); }
+    function addGar() { state.form.garantias.push({ tipo: 'Inicial', numero: '', amparos: '', valor: 0, inicio: '', fin: '', aprobacion: '' }); saveStateToStorage(); render(); }
+    function removeGar(idx) { state.form.garantias.splice(idx, 1); saveStateToStorage(); render(); }
+    function updateGar(idx, k, v) { state.form.garantias[idx][k] = v; saveStateToStorage(); }
+    function addPago() { state.form.pagos.push({ orpa: '', fecha: '', valor: 0 }); saveStateToStorage(); render(); }
+    function removePago(idx) { state.form.pagos.splice(idx, 1); saveStateToStorage(); render(); }
+    function updatePago(idx, k, v) { state.form.pagos[idx][k] = v; saveStateToStorage(); }
+    function addConsiderando() { state.form.considerandosExtra.push(''); saveStateToStorage(); render(); }
+    function removeConsiderando(idx) { state.form.considerandosExtra.splice(idx, 1); saveStateToStorage(); render(); }
+    function updateConsiderando(idx, v) { state.form.considerandosExtra[idx] = v; saveStateToStorage(); }
 
     function calcAll() {
       const f = state.form;
@@ -1081,6 +1254,35 @@
       const pTot = pIni + pPro + pSus;
       const elPlazo = document.getElementById('disp-plazo-total');
       if (elPlazo) elPlazo.value = pTot ? `${pTot} días` : '';
+
+      // Validación visual en tiempo real entre fechas y Plazo Total
+      const alertPlazo = document.getElementById('plazo-mismatch-alert');
+      if (alertPlazo) {
+        if (f.fechaInicio && f.fechaTerminacion) {
+          const diasReales = diffDaysInclusive(f.fechaInicio, f.fechaTerminacion);
+          if (diasReales <= 0) {
+            alertPlazo.className = 'bg-red-50 border border-red-300 rounded-xl p-3 text-xs text-red-900 flex items-center justify-between gap-2';
+            alertPlazo.innerHTML = `<span>⛔ <strong>Fechas inválidas:</strong> La Fecha de Terminación (${formatDateShort(f.fechaTerminacion)}) es anterior a la Fecha de Inicio (${formatDateShort(f.fechaInicio)}).</span>`;
+          } else if (pTot > 0 && diasReales !== pTot) {
+            const fechaSugerida = addDaysToIso(f.fechaInicio, pTot);
+            alertPlazo.className = 'bg-amber-50 border border-amber-400 rounded-xl p-3.5 text-xs text-amber-950 flex flex-wrap items-center justify-between gap-3';
+            alertPlazo.innerHTML = `
+              <div>
+                ⚠️ <strong>Los días no cuadran con las fechas:</strong> Entre el <strong>${formatDateShort(f.fechaInicio)}</strong> y el <strong>${formatDateShort(f.fechaTerminacion)}</strong> hay <strong>${diasReales} días</strong>, pero el Plazo Total (Inicial + Prórrogas + Suspensiones) suma <strong>${pTot} días</strong>.
+              </div>
+              <button type="button" onclick="aplicarFechaSugerida('${fechaSugerida}')" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 shadow-xs">
+                Aplicar fecha fin sugerida (${formatDateShort(fechaSugerida)})
+              </button>
+            `;
+          } else {
+            alertPlazo.className = 'hidden';
+            alertPlazo.innerHTML = '';
+          }
+        } else {
+          alertPlazo.className = 'hidden';
+          alertPlazo.innerHTML = '';
+        }
+      }
 
       const vIni = Number(f.valorInicial) || 0;
       const vAdi = Number(f.valorAdicion) || 0;
@@ -1310,7 +1512,7 @@
       const fmt = n => '$' + n.toLocaleString('es-CO');
 
       const siglaObj = SIGLAS_CATALOG.find(s => s.code === f.sigla) || SIGLAS_CATALOG[0];
-      const numVal = f.numero.trim() || '___';
+      const numVal = getFormattedOrderNumber() || '___';
       const anioVal = f.anio.trim() || '2026';
       const refOrdenUpper = `${siglaObj.docName} ${f.sigla} No. ${numVal} de ${anioVal}`;
       const refOrdenLower = `${siglaObj.docName.toLowerCase()} ${f.sigla} No. ${numVal} de ${anioVal}`;
@@ -1612,7 +1814,8 @@
 
       try {
         const out = await buildModifiedDocxBlob();
-        const fileName = `Acta_Liquidacion_${f.sigla}_${f.numero}_${f.anio}.docx`;
+        const numCleanFile = getFormattedOrderNumber().replace(/\s+/g, '_');
+        const fileName = `Acta_Liquidacion_${f.sigla}_${numCleanFile}_${f.anio}.docx`;
         const blobUrl = URL.createObjectURL(out);
 
         const box = document.getElementById('download-ready-box');
