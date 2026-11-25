@@ -37,7 +37,7 @@
 </head>
 <body class="min-h-screen w-full flex flex-col">
 
-  <!-- HEADER SUPERIOR INSTITUCIONAL -->
+  <!-- HEADER SUPERIOR INSTITUCIONAL (SIN BOTÓN ROJO) -->
   <header class="unal-navy text-white px-6 py-3.5 shadow-md w-full border-b-4 border-[#84a938]">
     <div class="w-full flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3.5">
@@ -57,15 +57,12 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2.5">
-        <button id="autosave-indicator" onclick="openDraftsModal()" title="Ver y gestionar borradores guardados en este equipo"
+        <button id="autosave-indicator" onclick="openDraftsPage()" title="Ir a la página de borradores guardados"
           class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-600/60 transition cursor-pointer">
-          <span>💾</span> <span id="autosave-text">Autoguardado local activo</span>
+          <span>💾</span> <span id="autosave-text">Borradores guardados</span>
         </button>
         <button onclick="toggleModal(true)" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-[#293829] hover:bg-[#344734] text-[#b4dc5e] border border-[#84a938]/40 transition flex items-center gap-1.5">
           <span>🎓</span> ¿Cómo funciona?
-        </button>
-        <button onclick="confirmClearAllData()" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-rose-950/80 hover:bg-rose-900 text-rose-200 border border-rose-700/60 transition flex items-center gap-1.5">
-          <span>🗑</span> Borrar datos y reiniciar
         </button>
       </div>
     </div>
@@ -73,30 +70,6 @@
 
   <!-- CONTENIDO PRINCIPAL -->
   <main class="flex-1 w-full px-6 py-6" id="app-container"></main>
-
-  <!-- MODAL GESTOR DE BORRADORES GUARDADOS -->
-  <div id="drafts-modal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 border-2 unal-lime-border">
-      <div class="flex items-center justify-between border-b pb-3">
-        <div>
-          <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">💾 Borradores Guardados Localmente</h3>
-          <p class="text-xs text-slate-500 mt-0.5">Haz clic sobre cualquier borrador para abrirlo y continuar editándolo, o inicia uno nuevo.</p>
-        </div>
-        <button onclick="closeDraftsModal()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
-      </div>
-
-      <div id="drafts-list-container" class="max-h-80 overflow-y-auto space-y-2.5 pr-1"></div>
-
-      <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t">
-        <button onclick="createNewDraft()" class="px-4 py-2 rounded-lg bg-[#4d6e1d] hover:bg-[#3d5817] text-white text-xs font-bold transition">
-          + Nuevo borrador en blanco
-        </button>
-        <button onclick="closeDraftsModal()" class="px-4 py-2 rounded-lg unal-navy text-white text-xs font-bold">
-          Cerrar
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- MODAL FLOTANTE DE VISTA PREVIA -->
   <div id="preview-modal" class="hidden fixed inset-0 bg-slate-900/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
@@ -131,7 +104,7 @@
       <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
         <p><strong>1. Empresa 2018 vs. 2068:</strong> Si eliges Empresa <strong>2068</strong>, el sistema antepone automáticamente <strong>UGI</strong> antes de la sigla en todo el documento (ej. <em>UGI OPS No. 5 de 2026</em>).</p>
         <p><strong>2. Cálculo automático de plazos:</strong> Al elegir Fecha Inicio y Fecha Terminación se calcula el Plazo Inicial. Si agregas prórrogas y los días no cuadran, verás una alerta con la fecha sugerida para actualizarla con un clic.</p>
-        <p><strong>3. Borradores locales:</strong> Haz clic en <strong>"Autoguardado local activo"</strong> en la barra superior para ver, abrir o eliminar entre varios borradores guardados en este equipo.</p>
+        <p><strong>3. Borradores guardados:</strong> Haz clic en <strong>"Borradores guardados"</strong> en la barra superior para ir a la vista de borradores, elegir cuál editar o iniciar uno nuevo.</p>
         <p><strong>4. Limpieza rápida:</strong> Dentro de cada acta tienes el botón <strong>"Limpiar campos (escribir nuevo)"</strong> para vaciar el formulario manteniendo el mismo tipo de acta.</p>
       </div>
       <div class="text-right pt-2">
@@ -142,10 +115,16 @@
 
   <script>
     const GITHUB_BASE = '.';
-    const DRAFTS_STORAGE_KEY = 'unal_actas_liquidacion_drafts_v3';
-    const ACTIVE_DRAFT_KEY = 'unal_actas_liquidacion_active_id_v3';
+    const DRAFTS_STORAGE_KEY = 'unal_actas_liquidacion_drafts_v4';
+    const ACTIVE_DRAFT_KEY = 'unal_actas_liquidacion_active_id_v4';
     const MAX_ORPA_ROWS = 11;
     const MAX_GARANTIA_ROWS = 7;
+
+    // Respaldo en memoria para entornos sandbox como Google Sites donde localStorage puede estar restringido
+    window.__memDrafts = {};
+    window.__memActiveId = null;
+    let lastClearedBackup = null;
+    let undoTimer = null;
 
     const TEMPLATES = {
       mutuo_sin_anular_sin_favor: {
@@ -282,6 +261,7 @@
     });
 
     const initialState = () => ({
+      viewMode: 'wizard', // 'wizard' | 'drafts'
       draftId: 'draft_' + Date.now(),
       currentNodeId: 'ejecucion',
       history: [],
@@ -294,29 +274,48 @@
     function getAllDrafts() {
       try {
         const raw = localStorage.getItem(DRAFTS_STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {};
-      } catch (e) {
-        return {};
-      }
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          window.__memDrafts = { ...window.__memDrafts, ...parsed };
+          return window.__memDrafts;
+        }
+      } catch (e) {}
+      return window.__memDrafts || {};
     }
 
     function saveAllDrafts(draftsMap) {
+      window.__memDrafts = draftsMap;
       try {
         localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(draftsMap));
+      } catch (e) {}
+    }
+
+    function setActiveDraftStorage(id) {
+      window.__memActiveId = id;
+      try {
+        if (id) localStorage.setItem(ACTIVE_DRAFT_KEY, id);
+        else localStorage.removeItem(ACTIVE_DRAFT_KEY);
+      } catch (e) {}
+    }
+
+    function getActiveDraftStorage() {
+      try {
+        return localStorage.getItem(ACTIVE_DRAFT_KEY) || window.__memActiveId;
       } catch (e) {
-        console.warn('No se pudo guardar en localStorage:', e);
+        return window.__memActiveId;
       }
     }
 
     function loadInitialDraftState() {
       const drafts = getAllDrafts();
-      const activeId = localStorage.getItem(ACTIVE_DRAFT_KEY);
+      const activeId = getActiveDraftStorage();
       if (activeId && drafts[activeId]) {
         const saved = drafts[activeId];
         const base = initialState();
         return {
           ...base,
           ...saved,
+          viewMode: 'wizard',
           draftId: activeId,
           validationErrors: [],
           form: { ...base.form, ...(saved.form || {}) }
@@ -325,12 +324,13 @@
       const ids = Object.keys(drafts);
       if (ids.length > 0) {
         const lastId = ids[ids.length - 1];
-        localStorage.setItem(ACTIVE_DRAFT_KEY, lastId);
+        setActiveDraftStorage(lastId);
         const saved = drafts[lastId];
         const base = initialState();
         return {
           ...base,
           ...saved,
+          viewMode: 'wizard',
           draftId: lastId,
           validationErrors: [],
           form: { ...base.form, ...(saved.form || {}) }
@@ -361,16 +361,14 @@
             history: state.history,
             breadcrumbs: state.breadcrumbs,
             selectedTemplateKey: state.selectedTemplateKey,
-            form: state.form
+            form: JSON.parse(JSON.stringify(state.form))
           };
           saveAllDrafts(drafts);
-          localStorage.setItem(ACTIVE_DRAFT_KEY, state.draftId);
+          setActiveDraftStorage(state.draftId);
         }
 
         updateAutosaveBadge(true);
-      } catch (e) {
-        console.warn('Error al guardar borrador:', e);
-      }
+      } catch (e) {}
     }
 
     function updateAutosaveBadge(justSaved = false) {
@@ -383,10 +381,10 @@
         clearTimeout(saveTimer);
         saveTimer = setTimeout(() => {
           const c = Object.keys(getAllDrafts()).length;
-          txt.textContent = `Autoguardado local activo${c > 0 ? ` (${c})` : ''}`;
+          txt.textContent = `Borradores guardados${c > 0 ? ` (${c})` : ''}`;
         }, 1200);
       } else {
-        txt.textContent = `Autoguardado local activo${suffix}`;
+        txt.textContent = `Borradores guardados${suffix}`;
       }
     }
 
@@ -624,61 +622,18 @@
       document.getElementById('help-modal').classList.toggle('hidden', !show);
     }
 
-    // GESTIÓN DE BORRADORES GUARDADOS
-    function openDraftsModal() {
-      renderDraftsList();
-      document.getElementById('drafts-modal').classList.remove('hidden');
+    // NAVEGACIÓN A LA PÁGINA DEDICADA DE BORRADORES GUARDADOS
+    function openDraftsPage() {
+      saveStateToStorage();
+      state.viewMode = 'drafts';
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function closeDraftsModal() {
-      document.getElementById('drafts-modal').classList.add('hidden');
-    }
-
-    function renderDraftsList() {
-      const container = document.getElementById('drafts-list-container');
-      if (!container) return;
-      const drafts = Object.values(getAllDrafts()).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-
-      if (drafts.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-8 text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200">
-            No hay borradores guardados todavía en este navegador. Empieza a llenar un acta y se guardará automáticamente aquí.
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = drafts.map(d => {
-        const df = d.form || {};
-        const isCurrent = d.draftId === state.draftId;
-        const prefix = df.codigoEmpresa === '2068' ? 'UGI ' : '';
-        const ordenLabel = `${df.codigoEmpresa || '2018'} • ${prefix}${df.sigla || 'OPS'} No. ${df.numero || 'Sin número'} de ${df.anio || '2026'}`;
-        const personaLabel = df.tipoPersona === 'juridica' ? (df.empresaNombre || df.contratista || 'Sin contratista') : (df.contratista || 'Sin contratista');
-        const tplTitle = d.selectedTemplateKey && TEMPLATES[d.selectedTemplateKey] ? TEMPLATES[d.selectedTemplateKey].code : 'Diagnóstico en curso';
-        const fechaAct = d.updatedAt ? new Date(d.updatedAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) : '';
-
-        return `
-          <div onclick="switchToDraft('${escAttr(d.draftId)}')"
-            class="cursor-pointer p-3.5 rounded-xl border-2 transition ${isCurrent ? 'border-[#84a938] bg-[#f7faef] hover:bg-[#eff6df]' : 'border-slate-200 bg-white hover:border-[#84a938]/70 hover:bg-slate-50'} flex flex-wrap items-center justify-between gap-3">
-            <div class="space-y-1 min-w-0 flex-1">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-bold text-xs text-slate-900">${escHtml(ordenLabel)}</span>
-                ${isCurrent ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#84a938] text-white">En pantalla</span>' : ''}
-              </div>
-              <div class="text-xs text-slate-700 truncate"><strong>Contratista:</strong> ${escHtml(personaLabel)}</div>
-              <div class="text-[11px] text-slate-500">${escHtml(tplTitle)} ${fechaAct ? `• Act: ${fechaAct}` : ''}</div>
-            </div>
-            <div class="flex items-center gap-1.5 shrink-0" onclick="event.stopPropagation()">
-              <button type="button" onclick="switchToDraft('${escAttr(d.draftId)}')" class="px-3 py-1.5 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold">
-                ${isCurrent ? 'Continuar →' : 'Abrir →'}
-              </button>
-              <button type="button" onclick="deleteDraftById('${escAttr(d.draftId)}')" class="px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold" title="Eliminar este borrador">
-                🗑
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
+    function backFromDraftsPage() {
+      state.viewMode = 'wizard';
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function switchToDraft(draftId) {
@@ -689,14 +644,14 @@
       state = {
         ...base,
         ...target,
+        viewMode: 'wizard',
         draftId,
         validationErrors: [],
         form: { ...base.form, ...(target.form || {}) }
       };
-      localStorage.setItem(ACTIVE_DRAFT_KEY, draftId);
-      closeDraftsModal();
+      setActiveDraftStorage(draftId);
       render();
-      updateAutosaveBadge(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function deleteDraftById(draftId) {
@@ -706,51 +661,59 @@
       if (state.draftId === draftId) {
         const remainingIds = Object.keys(drafts);
         if (remainingIds.length > 0) {
-          switchToDraft(remainingIds[remainingIds.length - 1]);
-          openDraftsModal();
-          return;
+          const nextId = remainingIds[remainingIds.length - 1];
+          const base = initialState();
+          const target = drafts[nextId];
+          state = {
+            ...base,
+            ...target,
+            viewMode: 'drafts',
+            draftId: nextId,
+            validationErrors: [],
+            form: { ...base.form, ...(target.form || {}) }
+          };
+          setActiveDraftStorage(nextId);
         } else {
           state = initialState();
-          localStorage.removeItem(ACTIVE_DRAFT_KEY);
-          render();
+          state.viewMode = 'drafts';
+          setActiveDraftStorage(null);
         }
       }
-      updateAutosaveBadge(false);
-      renderDraftsList();
+      render();
     }
 
     function createNewDraft() {
       saveStateToStorage();
       state = initialState();
-      localStorage.setItem(ACTIVE_DRAFT_KEY, state.draftId);
-      closeDraftsModal();
+      state.viewMode = 'wizard';
+      setActiveDraftStorage(state.draftId);
       render();
-      updateAutosaveBadge(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    // LIMPIEZA DIRECTA SIN confirm() NATIVO (COMPATIBLE CON GOOGLE SITES IFRAME)
     function clearCurrentFormOnly() {
-      if (!confirm('¿Limpiar todos los campos de este formulario para redactar un nuevo contrato con esta misma plantilla?')) return;
+      lastClearedBackup = JSON.parse(JSON.stringify(state.form));
       state.form = initialForm();
       state.validationErrors = [];
       state.draftId = 'draft_' + Date.now();
       saveStateToStorage();
       render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      clearTimeout(undoTimer);
+      undoTimer = setTimeout(() => {
+        lastClearedBackup = null;
+        const banner = document.getElementById('undo-clear-banner');
+        if (banner) banner.classList.add('hidden');
+      }, 8000);
     }
 
-    function confirmClearAllData() {
-      if (confirm('¿Deseas borrar el borrador actual y volver al inicio del diagnóstico?')) {
-        resetWizard();
-      }
-    }
-
-    function resetWizard() {
-      const drafts = getAllDrafts();
-      delete drafts[state.draftId];
-      saveAllDrafts(drafts);
-      localStorage.removeItem(ACTIVE_DRAFT_KEY);
-      state = initialState();
-      updateAutosaveBadge(false);
+    function undoClearForm() {
+      if (!lastClearedBackup) return;
+      state.form = lastClearedBackup;
+      lastClearedBackup = null;
+      saveStateToStorage();
       render();
     }
 
@@ -904,8 +867,95 @@
     function render() {
       updateAutosaveBadge(false);
       const container = document.getElementById('app-container');
-      if (!state.selectedTemplateKey) renderQuestionNode(container);
-      else renderFormView(container);
+      if (state.viewMode === 'drafts') {
+        renderDraftsPageView(container);
+      } else if (!state.selectedTemplateKey) {
+        renderQuestionNode(container);
+      } else {
+        renderFormView(container);
+      }
+    }
+
+    // VISTA DEDICADA DE BORRADORES GUARDADOS
+    function renderDraftsPageView(container) {
+      const drafts = Object.values(getAllDrafts()).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+
+      container.innerHTML = `
+        <div class="w-full fade-in space-y-5">
+          <div class="bg-white rounded-2xl shadow-sm border-2 unal-lime-border overflow-hidden">
+            <div class="unal-navy p-6 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wide px-3 py-1 rounded-full bg-[#2b3829] text-[#b4dc5e] border border-[#84a938]/50">
+                  💾 ALMACENAMIENTO LOCAL DE ACTAS
+                </span>
+                <h2 class="text-xl md:text-2xl font-bold text-white mt-2">Borradores Guardados en este Equipo</h2>
+                <p class="text-xs text-slate-300 mt-1">Selecciona cualquier acta guardada para entrar y continuar editándola, o inicia una nueva.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2.5">
+                <button type="button" onclick="createNewDraft()" class="px-4 py-2.5 rounded-xl bg-[#84a938] hover:bg-[#71922e] text-white text-xs font-bold shadow-md transition">
+                  + Iniciar nueva acta desde cero
+                </button>
+                <button type="button" onclick="backFromDraftsPage()" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold border border-slate-500 transition">
+                  ← Volver a la pantalla anterior
+                </button>
+              </div>
+            </div>
+
+            <div class="p-6">
+              ${drafts.length === 0 ? `
+                <div class="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                  <div class="text-3xl">📂</div>
+                  <div class="font-bold text-slate-800 text-base">Aún no hay borradores guardados</div>
+                  <p class="text-xs text-slate-500 max-w-md mx-auto">Cada vez que avances en el diagnóstico o escribas datos en un acta, se guardará automáticamente en esta lista para que puedas retomarla cuando quieras.</p>
+                  <button type="button" onclick="createNewDraft()" class="mt-2 px-5 py-2.5 rounded-xl unal-navy text-white text-xs font-bold">
+                    Comenzar primera acta →
+                  </button>
+                </div>
+              ` : `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  ${drafts.map(d => {
+                    const df = d.form || {};
+                    const isCurrent = d.draftId === state.draftId;
+                    const prefix = df.codigoEmpresa === '2068' ? 'UGI ' : '';
+                    const ordenLabel = `Empresa ${df.codigoEmpresa || '2018'} • ${prefix}${df.sigla || 'OPS'} No. ${df.numero || 'Sin número'} de ${df.anio || '2026'}`;
+                    const personaLabel = df.tipoPersona === 'juridica'
+                      ? (df.empresaNombre || df.contratista || 'Sin contratista registrado')
+                      : (df.contratista || 'Sin contratista registrado');
+                    const tplInfo = d.selectedTemplateKey && TEMPLATES[d.selectedTemplateKey]
+                      ? TEMPLATES[d.selectedTemplateKey].title
+                      : 'Diagnóstico en curso (pendiente elegir plantilla)';
+                    const fechaAct = d.updatedAt ? new Date(d.updatedAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+
+                    return `
+                      <div onclick="switchToDraft('${escAttr(d.draftId)}')"
+                        class="cursor-pointer p-5 rounded-2xl border-2 transition flex flex-col justify-between gap-4 ${isCurrent ? 'border-[#84a938] bg-[#f7faef] hover:bg-[#eff6df]' : 'border-slate-200 bg-white hover:border-[#84a938] hover:bg-slate-50'}">
+                        <div class="space-y-2">
+                          <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <span class="font-extrabold text-sm text-slate-900">${escHtml(ordenLabel)}</span>
+                            ${isCurrent ? '<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#84a938] text-white">Activo actual</span>' : ''}
+                          </div>
+                          <div class="text-xs text-slate-700"><strong>Contratista:</strong> ${escHtml(personaLabel)}</div>
+                          <div class="text-xs text-slate-600 line-clamp-2"><strong>Tipo de acta:</strong> ${escHtml(tplInfo)}</div>
+                          ${fechaAct ? `<div class="text-[11px] text-slate-400">Última modificación: ${fechaAct}</div>` : ''}
+                        </div>
+
+                        <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-200/70" onclick="event.stopPropagation()">
+                          <button type="button" onclick="switchToDraft('${escAttr(d.draftId)}')" class="px-4 py-2 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold transition">
+                            Entrar a editar este borrador →
+                          </button>
+                          <button type="button" onclick="deleteDraftById('${escAttr(d.draftId)}')" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 text-xs font-semibold transition">
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     function renderBreadcrumbBar(percent, statusLabel) {
@@ -993,17 +1043,27 @@
               </div>
 
               <div class="flex flex-wrap items-center gap-2.5">
-                <button onclick="clearCurrentFormOnly()" class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md transition flex items-center gap-1.5">
+                <button type="button" onclick="clearCurrentFormOnly()" class="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
                   <span>🧹</span> Limpiar campos (escribir nuevo)
                 </button>
-                <button onclick="openPreviewModal()" class="px-4 py-2.5 rounded-xl bg-slate-700/80 hover:bg-slate-600 text-white text-xs font-bold border border-slate-500 transition flex items-center gap-1.5">
+                <button type="button" onclick="openPreviewModal()" class="px-4 py-2.5 rounded-xl bg-slate-700/80 hover:bg-slate-600 text-white text-xs font-bold border border-slate-500 transition flex items-center gap-1.5 cursor-pointer">
                   <span>👁</span> Vista previa
                 </button>
-                <button id="btn-download-word" onclick="generateDirectDocx()" class="px-4 py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold shadow-md transition flex items-center gap-1.5">
+                <button type="button" id="btn-download-word" onclick="generateDirectDocx()" class="px-4 py-2.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
                   <span>📄</span> Descargar Word (.docx)
                 </button>
               </div>
             </div>
+
+            <!-- BANNER DESHACER LIMPIEZA -->
+            ${lastClearedBackup ? `
+              <div id="undo-clear-banner" class="mx-6 mt-5 bg-amber-50 border border-amber-400 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+                <span class="text-xs font-bold text-amber-950">🧹 Formulario limpiado. Ya puedes digitar los datos del nuevo contrato.</span>
+                <button type="button" onclick="undoClearForm()" class="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold">
+                  ↩ Deshacer limpieza
+                </button>
+              </div>
+            ` : ''}
 
             <!-- ALERTA DE VALIDACIÓN AL DESCARGAR -->
             ${state.validationErrors.length > 0 ? `
@@ -1419,10 +1479,10 @@
 
               <!-- PIE DE TARJETA CON BOTONES DE NAVEGACIÓN -->
               <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200">
-                <button onclick="goBack()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                <button type="button" onclick="goBack()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer">
                   ← Modificar última respuesta
                 </button>
-                <button onclick="clearCurrentFormOnly()" class="px-4 py-2.5 rounded-xl bg-[#f1f6e4] hover:bg-[#e4efc9] text-[#4d661b] border border-[#84a938]/50 text-xs font-bold transition">
+                <button type="button" onclick="clearCurrentFormOnly()" class="px-4 py-2.5 rounded-xl bg-[#f1f6e4] hover:bg-[#e4efc9] text-[#4d661b] border border-[#84a938]/50 text-xs font-bold transition cursor-pointer">
                   🧹 Limpiar campos y escribir otro contrato igual
                 </button>
               </div>
