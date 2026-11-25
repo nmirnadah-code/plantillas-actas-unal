@@ -37,7 +37,7 @@
 </head>
 <body class="min-h-screen w-full flex flex-col">
 
-  <!-- HEADER SUPERIOR INSTITUCIONAL (SIN BOTÓN ROJO) -->
+  <!-- HEADER SUPERIOR INSTITUCIONAL -->
   <header class="unal-navy text-white px-6 py-3.5 shadow-md w-full border-b-4 border-[#84a938]">
     <div class="w-full flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3.5">
@@ -104,8 +104,8 @@
       <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
         <p><strong>1. Empresa 2018 vs. 2068:</strong> Si eliges Empresa <strong>2068</strong>, el sistema antepone automáticamente <strong>UGI</strong> antes de la sigla en todo el documento (ej. <em>UGI OPS No. 5 de 2026</em>).</p>
         <p><strong>2. Cálculo automático de plazos:</strong> Al elegir Fecha Inicio y Fecha Terminación se calcula el Plazo Inicial. Si agregas prórrogas y los días no cuadran, verás una alerta con la fecha sugerida para actualizarla con un clic.</p>
-        <p><strong>3. Borradores guardados:</strong> Haz clic en <strong>"Borradores guardados"</strong> en la barra superior para ir a la vista de borradores, elegir cuál editar o iniciar uno nuevo.</p>
-        <p><strong>4. Limpieza rápida:</strong> Dentro de cada acta tienes el botón <strong>"Limpiar campos (escribir nuevo)"</strong> para vaciar el formulario manteniendo el mismo tipo de acta.</p>
+        <p><strong>3. Borradores guardados:</strong> Solo se guarda un borrador cuando empiezas a escribir información en el contrato. Haz clic en <strong>"Borradores guardados"</strong> en la barra superior para abrir cualquiera de ellos.</p>
+        <p><strong>4. Limpieza rápida:</strong> Dentro de cada acta tienes el botón <strong>"Limpiar campos (escribir nuevo)"</strong> para vaciar el formulario manteniendo el mismo tipo de acta sin crear borradores vacíos.</p>
       </div>
       <div class="text-right pt-2">
         <button onclick="toggleModal(false)" class="px-4 py-2 rounded-lg unal-navy text-white text-xs font-bold">Entendido</button>
@@ -115,12 +115,11 @@
 
   <script>
     const GITHUB_BASE = '.';
-    const DRAFTS_STORAGE_KEY = 'unal_actas_liquidacion_drafts_v4';
-    const ACTIVE_DRAFT_KEY = 'unal_actas_liquidacion_active_id_v4';
+    const DRAFTS_STORAGE_KEY = 'unal_actas_liquidacion_drafts_v5';
+    const ACTIVE_DRAFT_KEY = 'unal_actas_liquidacion_active_id_v5';
     const MAX_ORPA_ROWS = 11;
     const MAX_GARANTIA_ROWS = 7;
 
-    // Respaldo en memoria para entornos sandbox como Google Sites donde localStorage puede estar restringido
     window.__memDrafts = {};
     window.__memActiveId = null;
     let lastClearedBackup = null;
@@ -261,8 +260,8 @@
     });
 
     const initialState = () => ({
-      viewMode: 'wizard', // 'wizard' | 'drafts'
-      draftId: 'draft_' + Date.now(),
+      viewMode: 'wizard',
+      draftId: 'draft_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       currentNodeId: 'ejecucion',
       history: [],
       breadcrumbs: [],
@@ -271,16 +270,62 @@
       form: initialForm()
     });
 
+    // VERIFICA SI EL FORMULARIO REALMENTE TIENE INFORMACIÓN ESCRITA POR EL USUARIO
+    function formHasWrittenData(f) {
+      if (!f) return false;
+      const hasPagos = Array.isArray(f.pagos) && f.pagos.some(p => (p.orpa && p.orpa.trim()) || p.fecha || Number(p.valor) > 0);
+      const hasConsiderandos = Array.isArray(f.considerandosExtra) && f.considerandosExtra.some(c => c && c.trim());
+      return Boolean(
+        (f.numero && f.numero.trim()) ||
+        (f.contratista && f.contratista.trim()) ||
+        (f.identificacion && f.identificacion.trim()) ||
+        (f.empresaNombre && f.empresaNombre.trim()) ||
+        (f.empresaNit && f.empresaNit.trim()) ||
+        (f.supervisor && f.supervisor.trim()) ||
+        (f.ccSupervisor && f.ccSupervisor.trim()) ||
+        (f.objeto && f.objeto.trim()) ||
+        (f.plazoInicial && Number(f.plazoInicial) > 0) ||
+        f.fechaInicio ||
+        f.fechaTerminacion ||
+        Number(f.valorInicial) > 0 ||
+        Number(f.valorAdicion) > 0 ||
+        Number(f.valorPendiente) > 0 ||
+        (f.aseguradora && f.aseguradora.trim()) ||
+        (f.justificacionSaldo && f.justificacionSaldo.trim()) ||
+        f.fechaAnticipada ||
+        (f.motivoAnticipada && f.motivoAnticipada.trim()) ||
+        (f.motivoNoEjecutada && f.motivoNoEjecutada.trim()) ||
+        hasPagos ||
+        hasConsiderandos
+      );
+    }
+
     function getAllDrafts() {
+      let combined = { ...(window.__memDrafts || {}) };
       try {
         const raw = localStorage.getItem(DRAFTS_STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw);
-          window.__memDrafts = { ...window.__memDrafts, ...parsed };
-          return window.__memDrafts;
+          combined = { ...combined, ...JSON.parse(raw) };
         }
       } catch (e) {}
-      return window.__memDrafts || {};
+
+      // Depurar automáticamente cualquier borrador vacío para evitar acumular formularios en blanco
+      const cleaned = {};
+      let changed = false;
+      Object.keys(combined).forEach(id => {
+        if (combined[id] && formHasWrittenData(combined[id].form)) {
+          cleaned[id] = combined[id];
+        } else {
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        saveAllDrafts(cleaned);
+      } else {
+        window.__memDrafts = cleaned;
+      }
+      return cleaned;
     }
 
     function saveAllDrafts(draftsMap) {
@@ -343,17 +388,9 @@
     function saveStateToStorage() {
       try {
         const drafts = getAllDrafts();
-        const f = state.form;
-        const hasMeaningfulData = Boolean(
-          state.selectedTemplateKey ||
-          state.breadcrumbs.length > 0 ||
-          f.numero.trim() ||
-          f.contratista.trim() ||
-          f.objeto.trim() ||
-          Number(f.valorInicial) > 0
-        );
+        const hasWritten = formHasWrittenData(state.form);
 
-        if (hasMeaningfulData || drafts[state.draftId]) {
+        if (hasWritten) {
           drafts[state.draftId] = {
             draftId: state.draftId,
             updatedAt: new Date().toISOString(),
@@ -365,9 +402,15 @@
           };
           saveAllDrafts(drafts);
           setActiveDraftStorage(state.draftId);
+          updateAutosaveBadge(true);
+        } else {
+          // Si el usuario borró lo que había escrito en este borrador, también lo quitamos de la lista
+          if (drafts[state.draftId]) {
+            delete drafts[state.draftId];
+            saveAllDrafts(drafts);
+          }
+          updateAutosaveBadge(false);
         }
-
-        updateAutosaveBadge(true);
       } catch (e) {}
     }
 
@@ -686,18 +729,27 @@
       saveStateToStorage();
       state = initialState();
       state.viewMode = 'wizard';
-      setActiveDraftStorage(state.draftId);
+      setActiveDraftStorage(null);
       render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // LIMPIEZA DIRECTA SIN confirm() NATIVO (COMPATIBLE CON GOOGLE SITES IFRAME)
+    // LIMPIEZA DIRECTA SIN CREAR BORRADORES EN BLANCO
     function clearCurrentFormOnly() {
-      lastClearedBackup = JSON.parse(JSON.stringify(state.form));
+      if (formHasWrittenData(state.form)) {
+        saveStateToStorage();
+        lastClearedBackup = {
+          draftId: state.draftId,
+          form: JSON.parse(JSON.stringify(state.form))
+        };
+      } else {
+        lastClearedBackup = null;
+      }
+
       state.form = initialForm();
       state.validationErrors = [];
-      state.draftId = 'draft_' + Date.now();
-      saveStateToStorage();
+      state.draftId = 'draft_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      setActiveDraftStorage(null);
       render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -711,7 +763,8 @@
 
     function undoClearForm() {
       if (!lastClearedBackup) return;
-      state.form = lastClearedBackup;
+      state.draftId = lastClearedBackup.draftId;
+      state.form = lastClearedBackup.form;
       lastClearedBackup = null;
       saveStateToStorage();
       render();
@@ -889,7 +942,7 @@
                   💾 ALMACENAMIENTO LOCAL DE ACTAS
                 </span>
                 <h2 class="text-xl md:text-2xl font-bold text-white mt-2">Borradores Guardados en este Equipo</h2>
-                <p class="text-xs text-slate-300 mt-1">Selecciona cualquier acta guardada para entrar y continuar editándola, o inicia una nueva.</p>
+                <p class="text-xs text-slate-300 mt-1">Aquí aparecen únicamente las actas en las que hayas escrito información. Selecciona una para editarla.</p>
               </div>
               <div class="flex flex-wrap items-center gap-2.5">
                 <button type="button" onclick="createNewDraft()" class="px-4 py-2.5 rounded-xl bg-[#84a938] hover:bg-[#71922e] text-white text-xs font-bold shadow-md transition">
@@ -905,10 +958,10 @@
               ${drafts.length === 0 ? `
                 <div class="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                   <div class="text-3xl">📂</div>
-                  <div class="font-bold text-slate-800 text-base">Aún no hay borradores guardados</div>
-                  <p class="text-xs text-slate-500 max-w-md mx-auto">Cada vez que avances en el diagnóstico o escribas datos en un acta, se guardará automáticamente en esta lista para que puedas retomarla cuando quieras.</p>
+                  <div class="font-bold text-slate-800 text-base">Aún no hay borradores con información escrita</div>
+                  <p class="text-xs text-slate-500 max-w-md mx-auto">Los borradores se crean únicamente cuando escribes datos dentro de un contrato (número de orden, contratista, objeto o valores).</p>
                   <button type="button" onclick="createNewDraft()" class="mt-2 px-5 py-2.5 rounded-xl unal-navy text-white text-xs font-bold">
-                    Comenzar primera acta →
+                    Comenzar un acta →
                   </button>
                 </div>
               ` : `
@@ -923,7 +976,7 @@
                       : (df.contratista || 'Sin contratista registrado');
                     const tplInfo = d.selectedTemplateKey && TEMPLATES[d.selectedTemplateKey]
                       ? TEMPLATES[d.selectedTemplateKey].title
-                      : 'Diagnóstico en curso (pendiente elegir plantilla)';
+                      : 'Diagnóstico en curso';
                     const fechaAct = d.updatedAt ? new Date(d.updatedAt).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
 
                     return `
@@ -1058,7 +1111,7 @@
             <!-- BANNER DESHACER LIMPIEZA -->
             ${lastClearedBackup ? `
               <div id="undo-clear-banner" class="mx-6 mt-5 bg-amber-50 border border-amber-400 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
-                <span class="text-xs font-bold text-amber-950">🧹 Formulario limpiado. Ya puedes digitar los datos del nuevo contrato.</span>
+                <span class="text-xs font-bold text-amber-950">🧹 Formulario limpiado. El borrador anterior quedó guardado y ya puedes escribir uno nuevo.</span>
                 <button type="button" onclick="undoClearForm()" class="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold">
                   ↩ Deshacer limpieza
                 </button>
